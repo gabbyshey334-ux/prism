@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  # Redis for job queues and caching
+  redis:
+    image: redis:7-alpine
+    container_name: prism-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - prism-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Node.js Backend Application
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: prism-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    networks:
+      - prism-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Background Workers
+  workers:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: prism-workers
+    restart: unless-stopped
+    command: ["node", "src/workers/index.js"]
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - prism-network
+
+  # NGINX Reverse Proxy with HTTPS
+  nginx:
+    image: nginx:alpine
+    container_name: prism-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/logs:/var/log/nginx
+      - ./uploads:/var/www/uploads
+    depends_on:
+      - backend
+    networks:
+      - prism-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Certbot for SSL certificate management
+  certbot:
+    image: certbot/certbot
+    container_name: prism-certbot
+    volumes:
+      - ./nginx/ssl:/etc/letsencrypt
+      - ./nginx/certbot:/var/lib/letsencrypt
+      - ./nginx/logs:/var/log/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - prism-network
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  prism-network:
+    driver: bridge

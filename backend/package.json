@@ -1,0 +1,51 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "test:social": "jest tests/social_posting.test.js",
+    "test:digitalocean": "node scripts/test-digitalocean-deployment.js",
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "worker": "node src/workers/index.js",
+    "worker:dev": "nodemon src/workers/index.js",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "deploy:digitalocean": "./scripts/deploy-digitalocean.sh",
+    "deploy:ssl": "./scripts/deploy-digitalocean.sh ssl",
+    "deploy:test": "./scripts/deploy-digitalocean.sh test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.81.1",
+    "axios": "^1.13.2",
+    "bcryptjs": "^3.0.3",
+    "bull": "^4.12.2",
+    "cors": "^2.8.5",
+    "cron-parser": "^4.9.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "firebase-admin": "^13.6.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "node-cron": "^3.0.3",
+    "nodemon": "^3.1.11",
+    "passport": "^0.7.0",
+    "passport-facebook": "^3.0.0",
+    "passport-google-oauth20": "^2.0.0",
+    "redis": "^4.6.13",
+    "winston": "^3.13.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  }
+}
