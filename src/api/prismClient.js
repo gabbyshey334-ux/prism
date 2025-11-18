@@ -1,9 +1,8 @@
 import apiClient from './apiClient';
-export const base44 = {
+export const prism = {
   auth: apiClient.auth,
   functions: apiClient.functions,
   entities: apiClient.entities,
   integrations: apiClient.integrations
 };
-export default base44;
-
+export default prism;

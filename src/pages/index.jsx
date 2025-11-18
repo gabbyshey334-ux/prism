@@ -20,7 +20,7 @@ import Brainstorm from "./Brainstorm";
 import Home from "./Home";
 import Login from "./Login";
 import Posts from "./Posts";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { Navigate } from 'react-router-dom';
 
 import TestCallbackPage from "./test-callback";
@@ -91,12 +91,12 @@ function PagesContent() {
   const currentPage = _getCurrentPage(location.pathname);
 
   const RootRoute = () => {
-    const isAuth = base44.auth.isAuthenticated();
+    const isAuth = prism.auth.isAuthenticated();
     return isAuth ? <Navigate to="/Dashboard" replace /> : <Home />;
   };
 
   const RequireAuth = ({ children }) => {
-    const isAuth = base44.auth.isAuthenticated();
+    const isAuth = prism.auth.isAuthenticated();
     if (!isAuth) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('redirect_after_login', window.location.pathname);

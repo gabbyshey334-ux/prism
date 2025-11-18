@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Sparkles, TrendingUp, Lightbulb, Zap, BarChart3, Upload, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,12 +24,12 @@ export default function Dashboard() {
   React.useEffect(() => {
     const checkAuth = async () => {
       try {
-        const isAuth = await base44.auth.isAuthenticated();
+        const isAuth = await prism.auth.isAuthenticated();
         if (!isAuth) {
-          base44.auth.redirectToLogin(window.location.pathname);
+          prism.auth.redirectToLogin(window.location.pathname);
           return;
         }
-        const userData = await base44.auth.me();
+        const userData = await prism.auth.me();
         setUser(userData);
 
         // Check for URL params to open workflow
@@ -40,7 +40,7 @@ export default function Dashboard() {
 
         if (ideaId && shouldOpenWorkflow) {
           // Fetch the idea and open workflow
-          const idea = await base44.entities.Content.filter({ id: ideaId });
+          const idea = await prism.entities.Content.filter({ id: ideaId });
           if (idea && idea.length > 0) {
             setWorkflowIdea(idea[0]);
             setShowWorkflow(true);
@@ -51,7 +51,7 @@ export default function Dashboard() {
         }
       } catch (error) {
         console.error("Authentication check failed:", error);
-        base44.auth.redirectToLogin(window.location.pathname);
+        prism.auth.redirectToLogin(window.location.pathname);
       } finally {
         setIsCheckingAuth(false);
       }
@@ -74,7 +74,7 @@ export default function Dashboard() {
           console.log('Running automatic daily trend research...');
           
           // Get all brands
-          const brandsData = await base44.entities.Brand.list();
+          const brandsData = await prism.entities.Brand.list();
           
           // Research trends for each brand (or general if no brands)
           if (brandsData.length > 0) {
@@ -158,7 +158,7 @@ For EACH trend provide:
 Return 10-15 distinct trends with all the above details, including source URLs.`;
 
 
-      const trendingData = await base44.integrations.Core.InvokeLLM({
+      const trendingData = await prism.integrations.Core.InvokeLLM({
         prompt: prompt,
         add_context_from_internet: true,
         response_json_schema: {
@@ -205,7 +205,7 @@ Return 10-15 distinct trends with all the above details, including source URLs.`
           storedSource = storedSource.toLowerCase();
         }
 
-        await base44.entities.TrendingTopic.create({
+        await prism.entities.TrendingTopic.create({
           ...trend,
           source: storedSource,
           source_date: sevenDaysAgo.toISOString(), // Assuming trends are valid from ~7 days ago
@@ -245,7 +245,7 @@ For EACH trend provide:
 Return 12-15 distinct general trends.`;
 
 
-      const trendingData = await base44.integrations.Core.InvokeLLM({
+      const trendingData = await prism.integrations.Core.InvokeLLM({
         prompt: prompt,
         add_context_from_internet: true,
         response_json_schema: {
@@ -285,7 +285,7 @@ Return 12-15 distinct general trends.`;
         else if (trend.duration_estimate?.toLowerCase().includes('month') || trend.duration_estimate?.toLowerCase().includes('long')) expiresAt.setDate(expiresAt.getDate() + 30);
         else expiresAt.setDate(expiresAt.getDate() + 7); // Default
 
-        await base44.entities.TrendingTopic.create({
+        await prism.entities.TrendingTopic.create({
           ...trend,
           source: trend.source?.toLowerCase() || 'general',
           source_date: sevenDaysAgo.toISOString(),
@@ -312,34 +312,34 @@ Return 12-15 distinct general trends.`;
 
   const { data: contents = [], isLoading } = useQuery({
     queryKey: ['contents'],
-    queryFn: () => base44.entities.Content.list('-created_date'),
+    queryFn: () => prism.entities.Content.list('-created_date'),
     initialData: [],
     enabled: !!user, // Only run query if user is authenticated
   });
 
   const { data: trends = [] } = useQuery({
     queryKey: ['trendingTopics'],
-    queryFn: () => base44.entities.TrendingTopic.list('-created_date', 5),
+    queryFn: () => prism.entities.TrendingTopic.list('-created_date', 5),
     initialData: [],
     enabled: !!user, // Only run query if user is authenticated
   });
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => base44.entities.Brand.list(),
+    queryFn: () => prism.entities.Brand.list(),
     initialData: [],
     enabled: !!user, // Only run query if user is authenticated
   });
 
   const createIdeaMutation = useMutation({
-    mutationFn: (data) => base44.entities.Content.create(data),
+    mutationFn: (data) => prism.entities.Content.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] });
     },
   });
 
   const createFromTrendMutation = useMutation({
-    mutationFn: (data) => base44.entities.Content.create(data),
+    mutationFn: (data) => prism.entities.Content.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] });
       toast.success("Idea saved!");
@@ -347,7 +347,7 @@ Return 12-15 distinct general trends.`;
   });
 
   const deleteContentMutation = useMutation({
-    mutationFn: (id) => base44.entities.Content.delete(id),
+    mutationFn: (id) => prism.entities.Content.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] });
       toast.success("Idea deleted!");
@@ -368,7 +368,7 @@ Return 12-15 distinct general trends.`;
         viral_score: content.viral_score,
         tags: content.tags
       };
-      return base44.entities.Content.create(duplicate);
+      return prism.entities.Content.create(duplicate);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] });
@@ -528,7 +528,7 @@ Return 12-15 distinct general trends.`;
         viral_score: c.viral_score
       }));
 
-      const response = await base44.integrations.Core.InvokeLLM({
+      const response = await prism.integrations.Core.InvokeLLM({
         prompt: `You are a social media analytics expert. Analyze this content performance data for ${brandData.name}:
 
 ${JSON.stringify(analyticsData, null, 2)}
