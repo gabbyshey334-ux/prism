@@ -18,10 +18,6 @@
       }
     },
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
@@ -86,16 +82,5 @@
       "develop": false
     }
   },
-  "regions": ["all"],
-  "functions": {
-    "api/**/*.js": {
-      "maxDuration": 30
-    }
-  },
-  "crons": [
-    {
-      "path": "/api/health",
-      "schedule": "0 */6 * * *"
-    }
-  ]
+  "regions": ["all"]
 }
