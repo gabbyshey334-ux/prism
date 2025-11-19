@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,7 +54,7 @@ export default function TemplatesPage() {
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['templates'],
-    queryFn: () => base44.entities.Template.list('-created_date'),
+    queryFn: () => prism.entities.Template.list('-created_date'),
     initialData: [],
   });
 
@@ -65,7 +65,7 @@ export default function TemplatesPage() {
   });
 
   const createTemplateMutation = useMutation({
-    mutationFn: async (data) => base44.entities.Template.create(data),
+    mutationFn: async (data) => prism.entities.Template.create(data),
     onSuccess: (newTemplate) => {
       queryClient.invalidateQueries({ queryKey: ['templates'] });
       setEditingTemplate(newTemplate); // Set editingTemplate to the newly created one to prepare for placeholder editing
@@ -79,7 +79,7 @@ export default function TemplatesPage() {
   });
 
   const updateTemplateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Template.update(id, data),
+    mutationFn: ({ id, data }) => prism.entities.Template.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] });
       toast.success("Template updated!");
@@ -95,7 +95,7 @@ export default function TemplatesPage() {
   });
 
   const deleteTemplateMutation = useMutation({
-    mutationFn: (id) => base44.entities.Template.delete(id),
+    mutationFn: (id) => prism.entities.Template.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] });
       toast.success("Template deleted!");
@@ -124,7 +124,7 @@ export default function TemplatesPage() {
         content_style: template.content_style,
         target_audience: template.target_audience
       };
-      return base44.entities.Template.create(duplicate);
+      return prism.entities.Template.create(duplicate);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] });
@@ -239,7 +239,7 @@ export default function TemplatesPage() {
       templateData: template, // Pass the full template object
       onSave: async (designData) => { // Direct save for existing template's design
         try {
-          await base44.entities.Template.update(template.id, {
+          await prism.entities.Template.update(template.id, {
             cesdk_scene: designData.scene,
             thumbnail_url: designData.previewUrl,
             block_metadata: designData.blockMetadata || template.block_metadata || [],
@@ -450,7 +450,7 @@ export default function TemplatesPage() {
                         <Button
                           onClick={async () => {
                             try {
-                              const { data } = await base44.functions.invoke('cesdkInspectScene', {
+                              const { data } = await prism.functions.invoke('cesdkInspectScene', {
                                 scene: template.cesdk_scene
                               });
                               console.log('Scene inspection:', data);

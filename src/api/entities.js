@@ -1,25 +1,25 @@
-import { base44 } from './base44Client';
+import { prism } from './prismClient';
 
 
-export const Content = base44.entities.Content;
+export const Content = prism.entities.Content;
 
-export const BrandSettings = base44.entities.BrandSettings;
+export const BrandSettings = prism.entities.BrandSettings;
 
-export const Brand = base44.entities.Brand;
+export const Brand = prism.entities.Brand;
 
-export const AutolistSettings = base44.entities.AutolistSettings;
+export const AutolistSettings = prism.entities.AutolistSettings;
 
-export const TrendingTopic = base44.entities.TrendingTopic;
+export const TrendingTopic = prism.entities.TrendingTopic;
 
-export const SocialMediaConnection = base44.entities.SocialMediaConnection;
+export const SocialMediaConnection = prism.entities.SocialMediaConnection;
 
-export const Template = base44.entities.Template;
+export const Template = prism.entities.Template;
 
-export const OAuthState = base44.entities.OAuthState;
+export const OAuthState = prism.entities.OAuthState;
 
-export const Upload = base44.entities.Upload;
+export const Upload = prism.entities.Upload;
 
 
 
 // auth sdk:
-export const User = base44.auth;
+export const User = prism.auth;

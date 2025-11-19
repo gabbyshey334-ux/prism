@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -92,16 +92,16 @@ export default function Posts() {
   React.useEffect(() => {
     const checkAuth = async () => {
       try {
-        const isAuth = await base44.auth.isAuthenticated();
+        const isAuth = await prism.auth.isAuthenticated();
         if (!isAuth) {
-          base44.auth.redirectToLogin(window.location.pathname);
+          prism.auth.redirectToLogin(window.location.pathname);
           return;
         }
-        const userData = await base44.auth.me();
+        const userData = await prism.auth.me();
         setUser(userData);
       } catch (error) {
         console.error("Auth check failed:", error);
-        base44.auth.redirectToLogin(window.location.pathname);
+        prism.auth.redirectToLogin(window.location.pathname);
       } finally {
         setIsCheckingAuth(false);
       }

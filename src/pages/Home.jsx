@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
@@ -22,7 +22,7 @@ export default function Home() {
   React.useEffect(() => {
     const checkAuth = async () => {
       try {
-        const isAuth = await base44.auth.isAuthenticated();
+        const isAuth = await prism.auth.isAuthenticated();
         if (isAuth) {
           // User is already logged in, redirect to Dashboard
           window.location.href = createPageUrl("Dashboard");
@@ -39,11 +39,11 @@ export default function Home() {
   }, []);
 
   const handleLogin = () => {
-    base44.auth.redirectToLogin(createPageUrl("Dashboard"));
+    prism.auth.redirectToLogin(createPageUrl("Dashboard"));
   };
 
   const handleSignup = () => {
-    base44.auth.redirectToLogin(createPageUrl("Dashboard"));
+    prism.auth.redirectToLogin(createPageUrl("Dashboard"));
   };
 
   const toggleFAQ = (index) => {

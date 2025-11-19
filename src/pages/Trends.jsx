@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -203,14 +203,14 @@ export default function Trends() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const isAuth = await base44.auth.isAuthenticated();
+        const isAuth = await prism.auth.isAuthenticated();
         if (!isAuth) {
-          base44.auth.redirectToLogin(window.location.pathname);
+          prism.auth.redirectToLogin(window.location.pathname);
           return;
         }
       } catch (error) {
         console.error("Authentication check failed:", error); // Log the error for debugging
-        base44.auth.redirectToLogin(window.location.pathname);
+        prism.auth.redirectToLogin(window.location.pathname);
       } finally {
         setIsCheckingAuth(false);
       }
@@ -250,7 +250,7 @@ export default function Trends() {
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => base44.entities.Brand.list(),
+    queryFn: () => prism.entities.Brand.list(),
     initialData: [],
     enabled: !isCheckingAuth, // Only fetch if auth check is complete
   });
@@ -295,7 +295,7 @@ export default function Trends() {
 
   // createContentMutation is now used in this component
   const createContentMutation = useMutation({
-    mutationFn: (data) => base44.entities.Content.create(data),
+    mutationFn: (data) => prism.entities.Content.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] }); // Invalidate contents query when new content is created
       toast.success("Content idea saved!");

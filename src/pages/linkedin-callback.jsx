@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 
 export default function LinkedInCallback() {

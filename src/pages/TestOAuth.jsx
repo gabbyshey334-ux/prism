@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, CheckCircle, XCircle, AlertCircle } from "lucide-react";
@@ -18,7 +18,7 @@ export default function TestOAuth() {
       console.log('🔍 Testing socialMediaConnect function...');
       console.log('📍 App ID: ');
       
-      const response = await base44.functions.invoke('socialMediaConnect', {
+      const response = await prism.functions.invoke('socialMediaConnect', {
         platform: 'tiktok',
         brand_id: 'test-brand-123'
       });

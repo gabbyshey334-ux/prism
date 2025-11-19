@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,13 @@ export default function Analytics() {
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => base44.entities.Brand.list(),
+    queryFn: () => prism.entities.Brand.list(),
     initialData: [],
   });
 
   const { data: contents = [] } = useQuery({
     queryKey: ['contents'],
-    queryFn: () => base44.entities.Content.list('-created_date'),
+    queryFn: () => prism.entities.Content.list('-created_date'),
     initialData: [],
   });
 
@@ -54,7 +54,7 @@ export default function Analytics() {
         viral_score: c.viral_score
       }));
 
-      const response = await base44.integrations.Core.InvokeLLM({
+      const response = await prism.integrations.Core.InvokeLLM({
         prompt: `You are a social media analytics expert. Analyze this content performance data for ${brandData.name}:
 
 ${JSON.stringify(analyticsData, null, 2)}

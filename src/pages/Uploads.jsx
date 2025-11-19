@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,18 +46,18 @@ export default function Uploads() {
 
   const { data: contents = [], isLoading } = useQuery({
     queryKey: ['uploads'],
-    queryFn: () => base44.entities.Content.list('-created_date'),
+    queryFn: () => prism.entities.Content.list('-created_date'),
     initialData: [],
   });
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => base44.entities.Brand.list(),
+    queryFn: () => prism.entities.Brand.list(),
     initialData: [],
   });
 
   const deleteUploadMutation = useMutation({
-    mutationFn: (id) => base44.entities.Content.delete(id),
+    mutationFn: (id) => prism.entities.Content.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['uploads'] });
       toast.success("Upload deleted!");
@@ -90,7 +90,7 @@ export default function Uploads() {
       }
 
       // Get current user for user_id
-      const currentUser = await base44.auth.getCurrentUser();
+      const currentUser = await prism.auth.getCurrentUser();
       if (!currentUser?.id) {
         throw new Error('User not authenticated');
       }
@@ -98,7 +98,7 @@ export default function Uploads() {
       setUploadProgress(prev => ({ ...prev, [fileData.file.name]: 10 }));
 
       // Upload to Firebase Storage with enhanced metadata
-      const uploadResult = await base44.integrations.Core.UploadFile({ file: fileData.file });
+      const uploadResult = await prism.integrations.Core.UploadFile({ file: fileData.file });
       
       setUploadProgress(prev => ({ ...prev, [fileData.file.name]: 50 }));
 
@@ -107,7 +107,7 @@ export default function Uploads() {
         : 'document';
 
       // Create upload record with comprehensive metadata
-      const uploadRecord = await base44.entities.Upload.create({
+      const uploadRecord = await prism.entities.Upload.create({
         user_id: currentUser.id,
         brand_id: fileData.brand_id || null,
         storage_path: uploadResult.storage_path,
@@ -120,7 +120,7 @@ export default function Uploads() {
       setUploadProgress(prev => ({ ...prev, [fileData.file.name]: 80 }));
 
       // Create content entry linked to upload
-      const contentData = await base44.entities.Content.create({
+      const contentData = await prism.entities.Content.create({
         user_id: currentUser.id,
         original_input: fileData.name || fileData.file.name,
         input_type: 'upload',

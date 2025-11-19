@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,19 +32,19 @@ export default function Autolist() {
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => base44.entities.Brand.list(),
+    queryFn: () => prism.entities.Brand.list(),
     initialData: [],
   });
 
   const { data: contents = [] } = useQuery({
     queryKey: ['contents'],
-    queryFn: () => base44.entities.Content.list('autolist_priority'),
+    queryFn: () => prism.entities.Content.list('autolist_priority'),
     initialData: [],
   });
 
   const { data: autolistSettings = [] } = useQuery({
     queryKey: ['autolistSettings'],
-    queryFn: () => base44.entities.AutolistSettings.list(),
+    queryFn: () => prism.entities.AutolistSettings.list(),
     initialData: [],
   });
 
@@ -56,7 +56,7 @@ export default function Autolist() {
   }, [brands, selectedBrand]);
 
   const updateContentMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Content.update(id, data),
+    mutationFn: ({ id, data }) => prism.entities.Content.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] });
     },
@@ -65,9 +65,9 @@ export default function Autolist() {
   const updateSettingsMutation = useMutation({
     mutationFn: async (data) => {
       if (data.id) {
-        return base44.entities.AutolistSettings.update(data.id, data);
+        return prism.entities.AutolistSettings.update(data.id, data);
       } else {
-        return base44.entities.AutolistSettings.create(data);
+        return prism.entities.AutolistSettings.create(data);
       }
     },
     onSuccess: () => {

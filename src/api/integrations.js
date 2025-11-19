@@ -1,23 +1,23 @@
-import { base44 } from './base44Client';
+import { prism } from './prismClient';
 
 
 
 
-export const Core = base44.integrations.Core;
+export const Core = prism.integrations.Core;
 
-export const InvokeLLM = base44.integrations.Core.InvokeLLM;
+export const InvokeLLM = prism.integrations.Core.InvokeLLM;
 
-export const SendEmail = base44.integrations.Core.SendEmail;
+export const SendEmail = prism.integrations.Core.SendEmail;
 
-export const UploadFile = base44.integrations.Core.UploadFile;
+export const UploadFile = prism.integrations.Core.UploadFile;
 
-export const GenerateImage = base44.integrations.Core.GenerateImage;
+export const GenerateImage = prism.integrations.Core.GenerateImage;
 
-export const ExtractDataFromUploadedFile = base44.integrations.Core.ExtractDataFromUploadedFile;
+export const ExtractDataFromUploadedFile = prism.integrations.Core.ExtractDataFromUploadedFile;
 
-export const CreateFileSignedUrl = base44.integrations.Core.CreateFileSignedUrl;
+export const CreateFileSignedUrl = prism.integrations.Core.CreateFileSignedUrl;
 
-export const UploadPrivateFile = base44.integrations.Core.UploadPrivateFile;
+export const UploadPrivateFile = prism.integrations.Core.UploadPrivateFile;
 
 
 

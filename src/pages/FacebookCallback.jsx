@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 
 export default function FacebookCallback() {
   const [status, setStatus] = useState('processing');
