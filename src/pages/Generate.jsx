@@ -17,13 +17,13 @@ export default function Generate() {
 
   const { data: recentIdeas = [] } = useQuery({
     queryKey: ['recentIdeas'],
-    queryFn: () => base44.entities.Content.list('-created_date', 5),
+    queryFn: () => prism.entities.Content.list('-created_date', 5),
     initialData: [],
   });
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => base44.entities.Brand.list(),
+    queryFn: () => prism.entities.Brand.list(),
     initialData: [],
   });
 
@@ -35,7 +35,7 @@ export default function Generate() {
     
     if (contentId || ideaId) {
       // Load the content and open workflow
-      base44.entities.Content.list().then(contents => {
+      prism.entities.Content.list().then(contents => {
         const content = contents.find(c => c.id === (contentId || ideaId));
         if (content) {
           setWorkflowIdea(content);

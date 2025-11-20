@@ -59,18 +59,18 @@ export default function Library() {
 
   const { data: contents = [], isLoading } = useQuery({
     queryKey: ['contents'],
-    queryFn: () => base44.entities.Content.list('-created_date'),
+    queryFn: () => prism.entities.Content.list('-created_date'),
     initialData: [],
   });
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => base44.entities.Brand.list(),
+    queryFn: () => prism.entities.Brand.list(),
     initialData: [],
   });
 
   const deleteContentMutation = useMutation({
-    mutationFn: (id) => base44.entities.Content.delete(id),
+    mutationFn: (id) => prism.entities.Content.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] });
       toast.success("Content deleted!");
@@ -98,7 +98,7 @@ export default function Library() {
         uploaded_file_type: content.uploaded_file_type,
         generated_images: content.generated_images ? [...content.generated_images] : [] // Deep copy generated_images
       };
-      return base44.entities.Content.create(duplicate);
+      return prism.entities.Content.create(duplicate);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] });
@@ -887,13 +887,13 @@ function UploadContentModal({ onClose, brands }) {
 
   const uploadMutation = useMutation({
     mutationFn: async (data) => {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: data.file });
+      const { file_url } = await prism.integrations.Core.UploadFile({ file: data.file });
 
       const fileType = data.file.type.startsWith('video/') ? 'video'
         : data.file.type.startsWith('image/') ? 'image'
         : 'document';
 
-      return base44.entities.Content.create({
+      return prism.entities.Content.create({
         original_input: data.description || data.title,
         input_type: 'upload',
         ai_generated_title: data.title,

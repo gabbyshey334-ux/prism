@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,15 +18,15 @@ export default function Settings() {
   React.useEffect(() => {
     const checkAuth = async () => {
       try {
-        const isAuth = await base44.auth.isAuthenticated();
+        const isAuth = await prism.auth.isAuthenticated();
         if (!isAuth) {
-          base44.auth.redirectToLogin(window.location.pathname);
+          prism.auth.redirectToLogin(window.location.pathname);
           return;
         }
       } catch (error) {
         // If isAuthenticated throws an error (e.g., network issue, invalid token format),
         // treat it as unauthenticated and redirect to login.
-        base44.auth.redirectToLogin(window.location.pathname);
+        prism.auth.redirectToLogin(window.location.pathname);
       } finally {
         setIsCheckingAuth(false);
       }
@@ -37,7 +37,7 @@ export default function Settings() {
   // Fetch current user data
   const { data: user } = useQuery({
     queryKey: ['currentUser'],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => prism.auth.me(),
     enabled: !isCheckingAuth, // Only fetch user data if auth check is complete
   });
 
@@ -57,7 +57,7 @@ export default function Settings() {
 
   // Mutation to update user profile
   const updateUserMutation = useMutation({
-    mutationFn: (data) => base44.auth.updateMe(data),
+    mutationFn: (data) => prism.auth.updateMe(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       toast.success("Profile updated!");
@@ -74,7 +74,7 @@ export default function Settings() {
 
   const handleLogout = () => {
     if (confirm("Are you sure you want to logout?")) {
-      base44.auth.logout();
+      prism.auth.logout();
     }
   };
 

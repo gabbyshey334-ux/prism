@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +39,7 @@ export default function RSSFeedManager({ brand, onClose, onUpdate }) {
     setIsRecommending(true);
     
     try {
-      const response = await base44.integrations.Core.InvokeLLM({
+      const response = await prism.integrations.Core.InvokeLLM({
         prompt: `Based on this brand profile, recommend 8-10 high-quality RSS feeds from reputable industry sources, news sites, and blogs:
 
 Brand: ${brand.name}

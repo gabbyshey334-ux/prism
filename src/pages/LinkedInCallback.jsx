@@ -39,7 +39,7 @@ export default function LinkedInCallback() {
 
         // Call backend function via SDK with parameters in body
         console.log('🔄 Calling backend function with code and state');
-        const response = await base44.functions.invoke('socialMediaCallback', {
+        const response = await prism.functions.invoke('socialMediaCallback', {
           code,
           state,
           platform: 'linkedin'

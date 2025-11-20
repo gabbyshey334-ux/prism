@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client"; // Added import for base44
+import { prism } from "@/api/prismClient"; // Added import for prism
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,7 @@ export default function TemplatePlaceholderEditor({ template, onSave, onClose })
     try {
       setLoading(true); // Set loading true at the start of the async operation
       // Call backend function to extract blocks using CE.SDK
-      const { data } = await base44.functions.invoke('cesdkExtractBlocks', {
+      const { data } = await prism.functions.invoke('cesdkExtractBlocks', {
         scene: sceneString
       });
 

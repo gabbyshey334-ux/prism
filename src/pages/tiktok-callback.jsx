@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 
 export default function TikTokCallback() {
@@ -28,7 +28,7 @@ export default function TikTokCallback() {
         setMessage('Exchanging authorization code...');
 
         // Call the backend to complete OAuth
-        const response = await base44.functions.invoke('socialMediaCallback', {
+        const response = await prism.functions.invoke('socialMediaCallback', {
           platform: 'tiktok',
           code,
           state

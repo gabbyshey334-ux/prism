@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Type, Image as ImageIcon, Upload } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { toast } from "sonner";
 
 export default function TemplateContentForm({ template, onGenerate, onClose }) {
@@ -20,7 +20,7 @@ export default function TemplateContentForm({ template, onGenerate, onClose }) {
   const handleImageUpload = async (placeholderId, file) => {
     setUploadingImage(placeholderId);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await prism.integrations.Core.UploadFile({ file });
       setContentValues(prev => ({ ...prev, [placeholderId]: file_url }));
       toast.success('Image uploaded!');
     } catch (error) {
@@ -45,14 +45,14 @@ export default function TemplateContentForm({ template, onGenerate, onClose }) {
 
     try {
       // Apply content to template
-      const { data } = await base44.functions.invoke('applyContentToTemplate', {
+      const { data } = await prism.functions.invoke('applyContentToTemplate', {
         templateScene: template.cesdk_scene,
         placeholders,
         contentValues
       });
 
       // Render the design
-      const { data: renderData } = await base44.functions.invoke('cesdkRenderDesign', {
+      const { data: renderData } = await prism.functions.invoke('cesdkRenderDesign', {
         scene: data.scene,
         exportFormat: 'png'
       });

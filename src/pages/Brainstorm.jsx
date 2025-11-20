@@ -20,14 +20,14 @@ export default function Brainstorm() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const isAuth = await base44.auth.isAuthenticated();
+        const isAuth = await prism.auth.isAuthenticated();
         if (!isAuth) {
-          base44.auth.redirectToLogin(window.location.pathname);
+          prism.auth.redirectToLogin(window.location.pathname);
           return;
         }
       } catch (error) {
         console.error("Authentication check failed:", error);
-        base44.auth.redirectToLogin(window.location.pathname);
+        prism.auth.redirectToLogin(window.location.pathname);
       }
     };
     checkAuth();
@@ -42,7 +42,7 @@ export default function Brainstorm() {
   useEffect(() => {
     if (!currentConversation) return;
 
-    const unsubscribe = base44.agents.subscribeToConversation(
+    const unsubscribe = prism.agents.subscribeToConversation(
       currentConversation.id,
       (data) => {
         setMessages(data.messages || []);
@@ -62,7 +62,7 @@ export default function Brainstorm() {
   const loadConversations = async () => {
     setIsLoadingConversations(true);
     try {
-      const convos = await base44.agents.listConversations({
+      const convos = await prism.agents.listConversations({
         agent_name: "content_brainstormer"
       });
       setConversations(convos || []);
@@ -85,7 +85,7 @@ export default function Brainstorm() {
 
   const createNewConversation = async () => {
     try {
-      const newConvo = await base44.agents.createConversation({
+      const newConvo = await prism.agents.createConversation({
         agent_name: "content_brainstormer",
         metadata: {
           name: "New Brainstorm Session",
@@ -111,7 +111,7 @@ export default function Brainstorm() {
     }
 
     try {
-      await base44.agents.deleteConversation(conversationId);
+      await prism.agents.deleteConversation(conversationId);
       
       const updatedConvos = conversations.filter(c => c.id !== conversationId);
       setConversations(updatedConvos);
@@ -146,7 +146,7 @@ export default function Brainstorm() {
         messages: messages.slice(-20)
       };
 
-      await base44.agents.addMessage(conversationWithLimitedHistory, {
+      await prism.agents.addMessage(conversationWithLimitedHistory, {
         role: "user",
         content: userMessage
       });

@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ export default function GeneratedContent({ idea, brandId, brandContent, brandSet
   const [scheduleTime, setScheduleTime] = useState("");
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Content.update(id, data),
+    mutationFn: ({ id, data }) => prism.entities.Content.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] });
     },
@@ -67,7 +67,7 @@ Brand voice: ${settings.brand_voice || 'N/A'}
 Create an IMPROVED, MORE VIRAL version that addresses the feedback while maintaining viral optimization.`;
 
     try {
-      const result = await base44.integrations.Core.InvokeLLM({
+      const result = await prism.integrations.Core.InvokeLLM({
         prompt,
         add_context_from_internet: false
       });

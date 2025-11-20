@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -236,28 +236,28 @@ export default function ContentCreationWorkflow({
   // Fetch templates
   const { data: templates = [] } = useQuery({
     queryKey: ['templates'],
-    queryFn: () => base44.entities.Template.list(),
+    queryFn: () => prism.entities.Template.list(),
     initialData: [],
   });
 
   // Fetch social connections
   const { data: connections = [] } = useQuery({
     queryKey: ['connections'],
-    queryFn: () => base44.entities.SocialMediaConnection.filter({ is_active: true }),
+    queryFn: () => prism.entities.SocialMediaConnection.filter({ is_active: true }),
     initialData: [],
   });
 
   // Fetch brands
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => base44.entities.Brand.list(),
+    queryFn: () => prism.entities.Brand.list(),
     initialData: [],
   });
 
   // Fetch media items for Media Library
   const { data: mediaLibrary = [], refetch: refetchMedia } = useQuery({
     queryKey: ['uploads'],
-    queryFn: () => base44.entities.Upload.list('-created_date'),
+    queryFn: () => prism.entities.Upload.list('-created_date'),
     initialData: [],
   });
 
@@ -266,7 +266,7 @@ export default function ContentCreationWorkflow({
   const autoSaveMutation = useMutation({
     mutationFn: (data) => {
       console.log('Auto-saving content:', data);
-      return base44.entities.Content.update(ideaData.id, data);
+      return prism.entities.Content.update(ideaData.id, data);
     },
     onSuccess: (updated) => {
       console.log('Auto-save successful');
@@ -386,7 +386,7 @@ ${brainstormMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
 User: ${brainstormInput}
 `;
 
-      const response = await base44.integrations.Core.InvokeLLM({
+      const response = await prism.integrations.Core.InvokeLLM({
         prompt: `You are a content strategist helping develop a viral content idea. Based on the context, provide helpful insights, suggestions, and ask clarifying questions to develop this idea further.\n\n${context}`,
         add_context_from_internet: false
       });
@@ -475,7 +475,7 @@ Also provide a main caption for the post that tells a compelling story with emot
               }
             });
 
-            const response = await base44.integrations.Core.InvokeLLM({
+            const response = await prism.integrations.Core.InvokeLLM({
               prompt,
               response_json_schema: schema
             });
@@ -485,7 +485,7 @@ Also provide a main caption for the post that tells a compelling story with emot
             // No template - default
             prompt += `\nCreate exactly ${slideCount} carousel slides. Each slide must have a title (short, 2-5 words) and content. Also provide a main caption that tells a compelling story (3-5 sentences) ending with 5-10 relevant hashtags (WITHOUT # prefix).`;
 
-            const response = await base44.integrations.Core.InvokeLLM({
+            const response = await prism.integrations.Core.InvokeLLM({
               prompt,
               response_json_schema: {
                 type: "object",
@@ -516,7 +516,7 @@ Also provide a main caption for the post that tells a compelling story with emot
           const tweetCount = options.tweet_count || 5;
           prompt += `\nCreate exactly ${tweetCount} tweets for a thread. Each tweet should be engaging and within 280 characters. Also provide 5-10 relevant hashtags (WITHOUT # prefix).`;
 
-          const response = await base44.integrations.Core.InvokeLLM({
+          const response = await prism.integrations.Core.InvokeLLM({
             prompt,
             response_json_schema: {
               type: "object",
@@ -567,7 +567,7 @@ Also provide a caption for the post that tells a compelling story with emotional
             }
           });
 
-          const response = await base44.integrations.Core.InvokeLLM({
+          const response = await prism.integrations.Core.InvokeLLM({
             prompt,
             response_json_schema: schema
           });
@@ -578,7 +578,7 @@ Also provide a caption for the post that tells a compelling story with emotional
           const needsCaption = format.needsVisuals || ['single_image', 'reel', 'tiktok', 'youtube_short', 'story'].includes(formatId);
 
           if (needsCaption) {
-            const response = await base44.integrations.Core.InvokeLLM({
+            const response = await prism.integrations.Core.InvokeLLM({
               prompt: prompt + `\nProvide a caption for the post ending with 5-10 relevant hashtags (WITHOUT # prefix).`,
               response_json_schema: {
                 type: "object",
@@ -592,7 +592,7 @@ Also provide a caption for the post that tells a compelling story with emotional
 
             generated[formatId] = response;
           } else {
-            const response = await base44.integrations.Core.InvokeLLM({
+            const response = await prism.integrations.Core.InvokeLLM({
               prompt: prompt + `\nGenerate the content for this post ending with 5-10 relevant hashtags (WITHOUT # prefix).`,
               response_json_schema: {
                 type: "object",
@@ -666,7 +666,7 @@ CRITICAL HASHTAG RULES:
           });
         }
 
-        const response = await base44.integrations.Core.InvokeLLM({
+        const response = await prism.integrations.Core.InvokeLLM({
           prompt: prompt,
           response_json_schema: {
             type: "object",
@@ -684,7 +684,7 @@ CRITICAL HASHTAG RULES:
       } else if (sectionType === 'tweet' && sectionIndex !== null) {
         prompt += `\nRegenerate only tweet ${sectionIndex + 1}. Current tweet content: "${currentContent.tweets?.[sectionIndex] || ''}". Keep it under 280 characters.`;
 
-        const response = await base44.integrations.Core.InvokeLLM({
+        const response = await prism.integrations.Core.InvokeLLM({
           prompt: prompt,
           response_json_schema: {
             type: "object",
@@ -704,7 +704,7 @@ CRITICAL HASHTAG RULES:
       } else if (sectionType === 'caption') {
         prompt += `\nRegenerate only the caption. Current caption: "${currentContent.caption || ''}". Also provide 5-10 relevant hashtags (WITHOUT # prefix).`;
 
-        const response = await base44.integrations.Core.InvokeLLM({
+        const response = await prism.integrations.Core.InvokeLLM({
           prompt: prompt,
           response_json_schema: {
             type: "object",
@@ -723,7 +723,7 @@ CRITICAL HASHTAG RULES:
       } else if (sectionType && currentContent[sectionType] !== undefined) { // Regenerating a specific template field
         prompt += `\nRegenerate only the field "${sectionType.replace(/_/g, ' ')}". Current content for this field: "${currentContent[sectionType]}".`;
 
-        const response = await base44.integrations.Core.InvokeLLM({
+        const response = await prism.integrations.Core.InvokeLLM({
           prompt: prompt,
           response_json_schema: {
             type: "object",
@@ -758,7 +758,7 @@ CRITICAL HASHTAG RULES:
             schema.required.push(prop);
         }
 
-        const response = await base44.integrations.Core.InvokeLLM({
+        const response = await prism.integrations.Core.InvokeLLM({
           prompt,
           response_json_schema: schema
         });
@@ -795,11 +795,11 @@ CRITICAL HASHTAG RULES:
     const urls = [];
     try {
       for (const file of files) {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        const { file_url } = await prism.integrations.Core.UploadFile({ file });
         urls.push(file_url);
 
         // Save to Upload entity
-        await base44.entities.Upload.create({
+        await prism.entities.Upload.create({
           file_name: file.name,
           file_url: file_url,
           file_type: file.type,
@@ -879,7 +879,7 @@ CRITICAL HASHTAG RULES:
             imagePrompt += `\n\nStyle: Professional, eye-catching, ${setup.style || 'modern'}`;
             imagePrompt += `\nBrand: ${brandName}`;
 
-            const result = await base44.integrations.Core.GenerateImage({
+            const result = await prism.integrations.Core.GenerateImage({
               prompt: imagePrompt
             });
 
@@ -1076,7 +1076,7 @@ CRITICAL HASHTAG RULES:
             mediaUrlsToPost.push(sceneData.previewUrl); // Use the already rendered preview
           } else if (sceneData?.scene) { // If there's a scene but no previewUrl, render it
             try {
-              const { data: renderResult } = await base44.functions.invoke('cesdkRenderDesign', {
+              const { data: renderResult } = await prism.functions.invoke('cesdkRenderDesign', {
                 scene: sceneData.scene,
                 exportFormat: 'png' // Assuming image for simplicity, can be dynamic
               });
@@ -1117,7 +1117,7 @@ CRITICAL HASHTAG RULES:
             }
 
             try {
-              const { data: postResult } = await base44.functions.invoke('socialMediaPost', {
+              const { data: postResult } = await prism.functions.invoke('socialMediaPost', {
                 connection_id: connection.id,
                 content_type: formatId,
                 media_urls: mediaUrlsToPost.length > 0 ? mediaUrlsToPost : null, // Pass null if no media
@@ -1138,7 +1138,7 @@ CRITICAL HASHTAG RULES:
         }
 
         // Update content status
-        await base44.entities.Content.update(ideaData.id, {
+        await prism.entities.Content.update(ideaData.id, {
           status: 'posted'
         });
 
@@ -1153,7 +1153,7 @@ CRITICAL HASHTAG RULES:
     } else if (action === 'schedule') {
       toast.info("Schedule functionality coming soon!");
     } else if (action === 'save_draft') {
-      await base44.entities.Content.update(ideaData.id, {
+      await prism.entities.Content.update(ideaData.id, {
         status: 'completed_draft'
       });
       toast.success("Saved as draft!");
@@ -1162,7 +1162,7 @@ CRITICAL HASHTAG RULES:
     } else if (action === 'download') {
       toast.info("Download functionality coming soon!");
     } else if (action === 'add_to_autolist') {
-      await base44.entities.Content.update(ideaData.id, {
+      await prism.entities.Content.update(ideaData.id, {
         in_autolist: true,
         status: 'completed_draft'
       });

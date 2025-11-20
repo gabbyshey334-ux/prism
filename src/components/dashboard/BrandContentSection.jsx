@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -92,7 +92,7 @@ export default function BrandContentSection({ idea, brands, brandSettings }) {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const updateContentMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Content.update(id, data),
+    mutationFn: ({ id, data }) => prism.entities.Content.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] });
     },
@@ -218,7 +218,7 @@ ${brandSettingsForBrand.length > 0 ? `Brand Guidelines:\n${brandSettingsForBrand
 
 Create engaging, on-brand content that will perform well on social media.`;
 
-          const content = await base44.integrations.Core.InvokeLLM({
+          const content = await prism.integrations.Core.InvokeLLM({
             prompt,
             add_context_from_internet: false
           });

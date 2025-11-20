@@ -179,12 +179,12 @@ export default function BrandsPage() {
 
   const { data: brands = [], isLoading } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => base44.entities.Brand.list(),
+    queryFn: () => prism.entities.Brand.list(),
     initialData: [],
   });
 
   const createBrandMutation = useMutation({
-    mutationFn: (data) => base44.entities.Brand.create(data),
+    mutationFn: (data) => prism.entities.Brand.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       setShowCreateDialog(false);
@@ -194,7 +194,7 @@ export default function BrandsPage() {
   });
 
   const updateBrandMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Brand.update(id, data),
+    mutationFn: ({ id, data }) => prism.entities.Brand.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       toast.success("Brand updated!");
@@ -202,7 +202,7 @@ export default function BrandsPage() {
   });
 
   const deleteBrandMutation = useMutation({
-    mutationFn: (id) => base44.entities.Brand.delete(id),
+    mutationFn: (id) => prism.entities.Brand.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       toast.success("Brand deleted!");

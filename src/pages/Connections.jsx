@@ -63,13 +63,13 @@ export default function Connections() {
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => base44.entities.Brand.list(),
+    queryFn: () => prism.entities.Brand.list(),
     initialData: [],
   });
 
   const { data: connections = [] } = useQuery({
     queryKey: ['connections'],
-    queryFn: () => base44.entities.SocialMediaConnection.list(),
+    queryFn: () => prism.entities.SocialMediaConnection.list(),
     initialData: [],
   });
 
@@ -101,7 +101,7 @@ export default function Connections() {
   }, [brands, selectedBrand]);
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.SocialMediaConnection.delete(id),
+    mutationFn: (id) => prism.entities.SocialMediaConnection.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connections'] });
       toast.success("Connection removed");
@@ -117,7 +117,7 @@ export default function Connections() {
     setConnecting(platformId);
 
     try {
-      const response = await base44.functions.invoke('socialMediaConnect', {
+      const response = await prism.functions.invoke('socialMediaConnect', {
         platform: platformId,
         brand_id: selectedBrand
       });
@@ -144,7 +144,7 @@ export default function Connections() {
 
   const handleRefreshToken = async (connectionId) => {
     try {
-      await base44.functions.invoke('socialMediaRefreshToken', {
+      await prism.functions.invoke('socialMediaRefreshToken', {
         connection_id: connectionId
       });
       queryClient.invalidateQueries({ queryKey: ['connections'] });

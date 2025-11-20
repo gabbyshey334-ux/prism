@@ -1,6 +1,6 @@
 
 import React, { useEffect, useCallback } from "react"; // Added useEffect and useCallback to imports
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -84,7 +84,7 @@ export default function CESDKEditor({
         }
       }
 
-      const { data: licenseResponse } = await base44.functions.invoke('getCESDKKey');
+      const { data: licenseResponse } = await prism.functions.invoke('getCESDKKey');
       
       if (!licenseResponse?.apiKey) {
         throw new Error('License key not available');
@@ -127,9 +127,9 @@ export default function CESDKEditor({
         callbacks: {
           onUpload: async (file) => {
             try {
-              const { file_url } = await base44.integrations.Core.UploadFile({ file });
+              const { file_url } = await prism.integrations.Core.UploadFile({ file });
               
-              await base44.entities.Upload.create({
+              await prism.entities.Upload.create({
                 file_name: file.name,
                 file_url: file_url,
                 file_type: file.type,
@@ -444,7 +444,7 @@ export default function CESDKEditor({
       });
 
       const previewFile = new File([blob], `${Date.now().toString(36)}_preview.png`, { type: 'image/png' });
-      const { file_url: previewUrl } = await base44.integrations.Core.UploadFile({ file: previewFile });
+      const { file_url: previewUrl } = await prism.integrations.Core.UploadFile({ file: previewFile });
 
       const result = {
         scene: sceneString,

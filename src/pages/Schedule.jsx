@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,18 +27,18 @@ export default function Schedule() {
 
   const { data: contents = [] } = useQuery({
     queryKey: ['contents'],
-    queryFn: () => base44.entities.Content.list('-created_date'),
+    queryFn: () => prism.entities.Content.list('-created_date'),
     initialData: [],
   });
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => base44.entities.Brand.list(),
+    queryFn: () => prism.entities.Brand.list(),
     initialData: [],
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Content.update(id, data),
+    mutationFn: ({ id, data }) => prism.entities.Content.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] });
     },

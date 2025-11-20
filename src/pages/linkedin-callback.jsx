@@ -27,7 +27,7 @@ export default function LinkedInCallback() {
 
         setMessage('Exchanging authorization code...');
 
-        const response = await base44.functions.invoke('socialMediaCallback', {
+        const response = await prism.functions.invoke('socialMediaCallback', {
           platform: 'linkedin',
           code,
           state

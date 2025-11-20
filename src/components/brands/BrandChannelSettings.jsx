@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ export default function BrandChannelSettings({ brand }) {
 
   const { data: allSettings = [] } = useQuery({
     queryKey: ['brandSettings'],
-    queryFn: () => base44.entities.BrandSettings.list(),
+    queryFn: () => prism.entities.BrandSettings.list(),
     initialData: [],
   });
 
@@ -61,9 +61,9 @@ export default function BrandChannelSettings({ brand }) {
   const saveMutation = useMutation({
     mutationFn: async (data) => {
       if (data.id) {
-        return base44.entities.BrandSettings.update(data.id, data);
+        return prism.entities.BrandSettings.update(data.id, data);
       } else {
-        return base44.entities.BrandSettings.create(data);
+        return prism.entities.BrandSettings.create(data);
       }
     },
     onSuccess: () => {

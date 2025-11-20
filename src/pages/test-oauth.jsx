@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -16,7 +16,7 @@ export default function TestOAuth() {
     try {
       console.log('Calling socialMediaConnect...');
       
-      const response = await base44.functions.invoke('socialMediaConnect', {
+      const response = await prism.functions.invoke('socialMediaConnect', {
         platform: 'tiktok',
         brand_id: 'test-brand-id'
       });

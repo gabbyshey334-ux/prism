@@ -48,7 +48,7 @@ export default function OAuthCallbackPage() {
         setMessage("Exchanging authorization code for access token...");
         console.log("Calling socialMediaCallback function...");
 
-        const response = await base44.functions.invoke("socialMediaCallback", {
+        const response = await prism.functions.invoke("socialMediaCallback", {
           code,
           state
         });

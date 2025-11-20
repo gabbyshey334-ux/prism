@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -104,7 +104,7 @@ export default function IdeaInput({ onSubmit, isLoading }) {
     try {
       const uploadedUrls = [];
       for (const file of files) {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        const { file_url } = await prism.integrations.Core.UploadFile({ file });
         uploadedUrls.push(file_url);
       }
       
@@ -129,7 +129,7 @@ export default function IdeaInput({ onSubmit, isLoading }) {
     setProcessingStatus(`Analyzing ${uploadedImages.length} image(s)...`);
     
     try {
-      const imageAnalysis = await base44.integrations.Core.InvokeLLM({
+      const imageAnalysis = await prism.integrations.Core.InvokeLLM({
         prompt: `Analyze these images (Instagram carousel/post) and extract ALL content:
 
 ${input ? `User context: ${input}` : ''}
@@ -200,7 +200,7 @@ This will allow the AI to analyze and recreate viral content based on the post.`
       else if (isLink) {
         setProcessingStatus("Analyzing link...");
         try {
-          const linkAnalysis = await base44.integrations.Core.InvokeLLM({
+          const linkAnalysis = await prism.integrations.Core.InvokeLLM({
             prompt: `Analyze this URL and extract the main content, key points, and insights: ${input}
             
             Provide a comprehensive summary of what the content is about.`,
@@ -216,7 +216,7 @@ This will allow the AI to analyze and recreate viral content based on the post.`
 
       // Generate title and category
       setProcessingStatus("Generating metadata...");
-      const metadata = await base44.integrations.Core.InvokeLLM({
+      const metadata = await prism.integrations.Core.InvokeLLM({
         prompt: `Based on this content input:
         
 Original input: "${input || 'Images uploaded'}"

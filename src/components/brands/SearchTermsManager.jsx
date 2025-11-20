@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,7 @@ export default function SearchTermsManager({ brand, onClose, onUpdate }) {
     setIsGenerating(true);
     
     try {
-      const response = await base44.integrations.Core.InvokeLLM({
+      const response = await prism.integrations.Core.InvokeLLM({
         prompt: `Based on this brand profile and news topics, generate comprehensive search terms and hashtags for monitoring trending content across social media platforms (TikTok, Instagram, Twitter, YouTube):
 
 Brand: ${brand.name}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,11 +27,11 @@ export default function BrandConnections({ brand }) {
       
       try {
         // Try to get ALL connections first to debug
-        const allConnections = await base44.entities.SocialMediaConnection.list();
+        const allConnections = await prism.entities.SocialMediaConnection.list();
         console.log('📊 ALL connections in database:', allConnections);
         
         // Now filter for this brand
-        const result = await base44.entities.SocialMediaConnection.filter({ brand_id: brand.id });
+        const result = await prism.entities.SocialMediaConnection.filter({ brand_id: brand.id });
         console.log('✅ Filtered connections for brand:', result);
         console.log('📌 Number of connections found:', result.length);
         
@@ -59,7 +59,7 @@ export default function BrandConnections({ brand }) {
   }, [queryError]);
 
   const deleteConnectionMutation = useMutation({
-    mutationFn: (id) => base44.entities.SocialMediaConnection.delete(id),
+    mutationFn: (id) => prism.entities.SocialMediaConnection.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['socialConnections', brand.id] });
       toast.success("Connection removed");
@@ -122,7 +122,7 @@ export default function BrandConnections({ brand }) {
     try {
       console.log('🔗 Initiating connection:', platformId, 'for brand:', brand.id);
       
-      const response = await base44.functions.invoke('socialMediaConnect', {
+      const response = await prism.functions.invoke('socialMediaConnect', {
         platform: platformId,
         brand_id: brand.id
       });

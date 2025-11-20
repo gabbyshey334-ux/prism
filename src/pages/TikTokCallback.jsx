@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 
 export default function TikTokCallback() {
   const [status, setStatus] = useState('processing');
@@ -39,7 +39,7 @@ export default function TikTokCallback() {
 
         // Call backend function via SDK with parameters in body
         console.log('🔄 Calling backend function with code and state');
-        const response = await base44.functions.invoke('socialMediaCallback', {
+        const response = await prism.functions.invoke('socialMediaCallback', {
           code,
           state,
           platform: 'tiktok'

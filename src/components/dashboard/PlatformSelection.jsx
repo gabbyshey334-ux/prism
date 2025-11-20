@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { prism } from "@/api/prismClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,7 +22,7 @@ export default function PlatformSelection({ idea, brand, brandSettings, onCancel
   const [isGenerating, setIsGenerating] = useState(false);
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Content.update(id, data),
+    mutationFn: ({ id, data }) => prism.entities.Content.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] });
     },
@@ -106,7 +106,7 @@ Return the content in this format:
 - CTA
 - Any additional notes or suggestions`;
 
-        const response = await base44.integrations.Core.InvokeLLM({
+        const response = await prism.integrations.Core.InvokeLLM({
           prompt: prompt,
           response_json_schema: {
             type: "object",
