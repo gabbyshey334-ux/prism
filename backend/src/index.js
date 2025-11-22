@@ -31,6 +31,11 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Root route for service status
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', service: 'prism-backend', base: '/api' });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'prism-backend' });
