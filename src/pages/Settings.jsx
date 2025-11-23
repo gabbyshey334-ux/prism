@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { User, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { auth as firebaseAuth } from "@/lib/firebaseClient";
+import { updateProfile } from "firebase/auth";
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -43,16 +45,13 @@ export default function Settings() {
 
   // State for user data form
   const [userData, setUserData] = useState({
-    full_name: user?.full_name || "",
+    full_name: "",
   });
 
   // Effect to update userData when user data is fetched or changes
   React.useEffect(() => {
-    if (user) {
-      setUserData({
-        full_name: user.full_name || "",
-      });
-    }
+    const resolved = (user?.full_name || user?.name || firebaseAuth?.currentUser?.displayName || (user?.email ? user.email.split('@')[0] : ""));
+    setUserData({ full_name: resolved || "" });
   }, [user]);
 
   // Mutation to update user profile
@@ -68,13 +67,23 @@ export default function Settings() {
   });
 
   // Handler for saving user profile changes
-  const handleSaveProfile = () => {
-    updateUserMutation.mutate(userData);
+  const handleSaveProfile = async () => {
+    try {
+      await Promise.all([
+        updateUserMutation.mutateAsync(userData).catch(() => {}),
+        (firebaseAuth.currentUser ? updateProfile(firebaseAuth.currentUser, { displayName: userData.full_name }) : Promise.resolve())
+      ]);
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      toast.success("Profile updated!");
+    } catch (e) {
+      toast.error(e?.message || "Failed to update profile");
+    }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (confirm("Are you sure you want to logout?")) {
-      prism.auth.logout();
+      try { await prism.auth.logout(); } catch {}
+      window.location.href = '/login';
     }
   };
 
@@ -114,7 +123,7 @@ export default function Settings() {
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold" style={{ color: 'var(--text)' }}>
-                      {user?.full_name || 'User'}
+                      {userData.full_name || 'User'}
                     </h2>
                     <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                       {user?.email}

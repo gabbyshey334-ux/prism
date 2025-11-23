@@ -19,6 +19,7 @@ const api = axios.create({
 // Token management
 let currentUser = null;
 let authToken = null;
+const DEV_BRANDS = [];
 
 // Auth API
 export const auth = {
@@ -44,14 +45,18 @@ export const auth = {
   },
   
   logout: async () => {
-    const response = await api.post('/auth/logout');
+    let resData = { ok: true };
+    try {
+      const response = await api.post('/auth/logout');
+      resData = response.data;
+    } catch {}
     currentUser = null;
     authToken = null;
     if (IS_BROWSER) {
       localStorage.removeItem('auth_token');
     }
     try { await signOut(firebaseAuth); } catch {}
-    return response.data;
+    return resData;
   },
   
   getCurrentUser: async () => {
@@ -75,8 +80,16 @@ export const auth = {
     return this.getCurrentUser();
   },
   updateMe: async (data) => {
-    const res = await api.put('/auth/me', data);
-    return res.data;
+    try {
+      const res = await api.put('/auth/me', data);
+      return res.data;
+    } catch (e) {
+      if (DEV_MODE) {
+        currentUser = { ...(currentUser || {}), ...data };
+        return { user: currentUser };
+      }
+      throw e;
+    }
   },
 
   // Base44 compatibility methods
@@ -119,8 +132,16 @@ api.interceptors.request.use((config) => {
 // Social Media API
 export const social = {
   connect: async (platform) => {
-    const response = await api.post('/social/connect', { platform });
-    return response.data;
+    try {
+      const response = await api.post('/social/connect', { platform });
+      return response.data;
+    } catch (e) {
+      if (DEV_MODE) {
+        const state = `platform-${platform}-${Date.now()}`;
+        return { authUrl: `/oauth-callback?code=devcode&state=${encodeURIComponent(state)}` };
+      }
+      throw e;
+    }
   },
   
   post: async (platform, content) => {
@@ -152,7 +173,12 @@ export const functions = {
       case 'socialMediaRefreshToken':
         return { data: await api.post('/social/refresh', { platform: payload.platform }) };
       case 'socialMediaCallback':
-        return { data: { success: true, account_name: 'dev_account' } };
+        {
+          const state = payload.state || '';
+          const platMatch = String(state).match(/platform-([a-zA-Z0-9_\-]+)/);
+          const platform = platMatch ? platMatch[1] : 'unknown';
+          return { data: { success: true, platform, account_name: 'dev_account' } };
+        }
       case 'tiktokVerification':
       case 'testOAuthCallback':
       default:
@@ -166,19 +192,27 @@ export const entities = {
   Brand: {
     list: async () => {
       try { const res = await api.get('/brands'); return res.data; }
-      catch (e) { if (DEV_MODE && BYPASS_AUTH) return []; throw e; }
+      catch (e) { if (DEV_MODE) return DEV_BRANDS; throw e; }
     },
     create: async (data) => {
       try { const res = await api.post('/brands', data); return res.data; }
-      catch (e) { if (DEV_MODE && BYPASS_AUTH) return { ...data, id: 'dev-brand' }; throw e; }
+      catch (e) {
+        if (DEV_MODE) {
+          const id = 'dev-' + Math.random().toString(36).slice(2);
+          const brand = { ...data, id };
+          DEV_BRANDS.push(brand);
+          return brand;
+        }
+        throw e;
+      }
     },
     update: async (id, data) => {
       try { const res = await api.put(`/brands/${id}`, data); return res.data; }
-      catch (e) { if (DEV_MODE && BYPASS_AUTH) return { id, ...data }; throw e; }
+      catch (e) { if (DEV_MODE) { const i = DEV_BRANDS.findIndex(b=>b.id===id); if (i>=0) DEV_BRANDS[i] = { ...DEV_BRANDS[i], ...data }; return DEV_BRANDS[i] || { id, ...data }; } throw e; }
     },
     delete: async (id) => {
       try { const res = await api.delete(`/brands/${id}`); return res.data; }
-      catch (e) { if (DEV_MODE && BYPASS_AUTH) return { ok: true }; throw e; }
+      catch (e) { if (DEV_MODE) { const i = DEV_BRANDS.findIndex(b=>b.id===id); if (i>=0) DEV_BRANDS.splice(i,1); return { ok: true }; } throw e; }
     },
   },
   SocialMediaConnection: {

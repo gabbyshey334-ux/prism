@@ -1,6 +1,6 @@
 
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Sparkles, LayoutDashboard, Settings, User, Calendar, ListOrdered, TrendingUp, FileText } from "lucide-react";
@@ -17,6 +17,8 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { prism } from "@/api/prismClient";
+import { auth as firebaseAuth } from "@/lib/firebaseClient";
 
 const navigationItems = [
   {
@@ -68,6 +70,27 @@ const navigationItems = [
 
 export default function Layout({ children }) {
   const location = useLocation();
+  const [userInfo, setUserInfo] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const u = await prism.auth.getCurrentUser();
+        if (mounted && u) setUserInfo({ name: u.name || u.displayName, email: u.email });
+      } catch {}
+      const fu = firebaseAuth.currentUser;
+      if (mounted && fu) setUserInfo({ name: fu.displayName, email: fu.email });
+    };
+    load();
+    const unsub = firebaseAuth.onAuthStateChanged?.((u) => {
+      if (u) setUserInfo({ name: u.displayName, email: u.email });
+    });
+    return () => {
+      mounted = false;
+      if (typeof unsub === 'function') unsub();
+    };
+  }, []);
 
   return (
     <SidebarProvider>
@@ -308,10 +331,10 @@ export default function Layout({ children }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm truncate" style={{ 
-                  color: 'var(--primary-dark)', /* Updated */
+                  color: 'var(--primary-dark)', 
                   textShadow: '0 1px 2px rgba(255, 255, 255, 0.3)'
-                }}>Creator</p>
-                <p className="text-xs truncate" style={{ color: 'var(--primary)' }}>Content Manager</p> {/* Updated */}
+                }}>{userInfo?.name || userInfo?.email || 'Signed Out'}</p>
+                <p className="text-xs truncate" style={{ color: 'var(--primary)' }}>{userInfo ? 'Signed In' : 'Guest'}</p>
               </div>
             </div>
           </SidebarFooter>
