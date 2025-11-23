@@ -27,6 +27,21 @@ export default function Login() {
         window.location.href = redirect;
       }
     });
+    let tries = 0;
+    const interval = setInterval(async () => {
+      tries++;
+      const u = firebaseAuth.currentUser;
+      if (u) {
+        try {
+          const token = await u.getIdToken();
+          localStorage.setItem('auth_token', token);
+          const redirect = localStorage.getItem('redirect_after_login') || '/Dashboard';
+          window.location.href = redirect;
+        } catch {}
+        clearInterval(interval);
+      }
+      if (tries > 40) clearInterval(interval);
+    }, 250);
     return () => unsub();
   }, []);
 
@@ -82,14 +97,17 @@ export default function Login() {
       const redirect = localStorage.getItem('redirect_after_login') || '/Dashboard';
       window.location.href = redirect;
     } catch (e) {
-      if (e?.code === 'auth/network-request-failed') {
+      const code = e?.code || ''
+      if (code === 'auth/network-request-failed' || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request' || code === 'auth/popup-blocked') {
         try {
           await signInWithRedirect(firebaseAuth, new GoogleAuthProvider())
         } catch (err2) {
-          setError(err2.message || 'Google sign-in failed (network)')
+          const msg = err2?.code === 'auth/unauthorized-domain' ? 'Unauthorized domain for Google auth. Add current domain to Firebase Authorized domains.' : (err2.message || 'Google sign-in failed')
+          setError(msg)
         }
       } else {
-        setError(e.message || 'Google sign-in failed');
+        const msg = code === 'auth/unauthorized-domain' ? 'Unauthorized domain for Google auth. Add current domain to Firebase Authorized domains.' : (e.message || 'Google sign-in failed')
+        setError(msg)
       }
     }
   }
@@ -103,14 +121,17 @@ export default function Login() {
       const redirect = localStorage.getItem('redirect_after_login') || '/Dashboard';
       window.location.href = redirect;
     } catch (e) {
-      if (e?.code === 'auth/network-request-failed') {
+      const code = e?.code || ''
+      if (code === 'auth/network-request-failed' || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request' || code === 'auth/popup-blocked') {
         try {
           await signInWithRedirect(firebaseAuth, new FacebookAuthProvider())
         } catch (err2) {
-          setError(err2.message || 'Facebook sign-in failed (network)')
+          const msg = err2?.code === 'auth/unauthorized-domain' ? 'Unauthorized domain for Facebook auth. Add current domain to Firebase Authorized domains.' : (err2.message || 'Facebook sign-in failed')
+          setError(msg)
         }
       } else {
-        setError(e.message || 'Facebook sign-in failed');
+        const msg = code === 'auth/unauthorized-domain' ? 'Unauthorized domain for Facebook auth. Add current domain to Firebase Authorized domains.' : (e.message || 'Facebook sign-in failed')
+        setError(msg)
       }
     }
   }
