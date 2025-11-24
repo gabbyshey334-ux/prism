@@ -39,6 +39,22 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Global CORS fallback to ensure headers on all responses and handle preflight
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && (allowedOrigins.length === 0 || allowedOrigins.includes(origin))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Vary', 'Origin');
+    res.header('Access-Control-Allow-Headers', 'Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    if (req.method === 'OPTIONS') {
+      return res.status(204).end();
+    }
+  }
+  next();
+});
+
 app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'prism-backend', base: '/api' });
 });
