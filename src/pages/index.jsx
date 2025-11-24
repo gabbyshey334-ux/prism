@@ -92,7 +92,7 @@ function PagesContent() {
 
   const RootRoute = () => {
     const isAuth = prism.auth.isAuthenticated();
-    return isAuth ? <Navigate to="/Dashboard" replace /> : <Home />;
+    return isAuth ? <Navigate to="/dashboard" replace /> : <Home />;
   };
 
   const RequireAuth = ({ children }) => {
@@ -111,25 +111,24 @@ function PagesContent() {
           <Routes>
             <Route path="/" element={<RootRoute />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/Dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-            <Route path="/Settings" element={<RequireAuth><Settings /></RequireAuth>} />
-            <Route path="/Brands" element={<RequireAuth><Brands /></RequireAuth>} />
-            <Route path="/Schedule" element={<RequireAuth><Schedule /></RequireAuth>} />
-            <Route path="/Autolist" element={<RequireAuth><Autolist /></RequireAuth>} />
-            <Route path="/Posts" element={<RequireAuth><Posts /></RequireAuth>} />
-            <Route path="/Trends" element={<RequireAuth><Trends /></RequireAuth>} />
-            <Route path="/Library" element={<RequireAuth><Library /></RequireAuth>} />
-            <Route path="/Generate" element={<RequireAuth><Generate /></RequireAuth>} />
-            <Route path="/Templates" element={<RequireAuth><Templates /></RequireAuth>} />
-            <Route path="/TestEditor" element={<RequireAuth><TestEditor /></RequireAuth>} />
-            <Route path="/Analytics" element={<RequireAuth><Analytics /></RequireAuth>} />
-            <Route path="/Uploads" element={<RequireAuth><Uploads /></RequireAuth>} />
-            <Route path="/Connections" element={<RequireAuth><Connections /></RequireAuth>} />
-            <Route path="/Privacy" element={<Privacy />} />
-            <Route path="/DataDeletion" element={<DataDeletion />} />
-            <Route path="/Terms" element={<Terms />} />
-            <Route path="/Brainstorm" element={<Brainstorm />} />
-            <Route path="/Home" element={<Home />} />
+            <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+            <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+            <Route path="/brands" element={<RequireAuth><Brands /></RequireAuth>} />
+            <Route path="/schedule" element={<RequireAuth><Schedule /></RequireAuth>} />
+            <Route path="/autolist" element={<RequireAuth><Autolist /></RequireAuth>} />
+            <Route path="/posts" element={<RequireAuth><Posts /></RequireAuth>} />
+            <Route path="/trends" element={<RequireAuth><Trends /></RequireAuth>} />
+            <Route path="/library" element={<RequireAuth><Library /></RequireAuth>} />
+            <Route path="/generate" element={<RequireAuth><Generate /></RequireAuth>} />
+            <Route path="/templates" element={<RequireAuth><Templates /></RequireAuth>} />
+            <Route path="/testeditor" element={<RequireAuth><TestEditor /></RequireAuth>} />
+            <Route path="/analytics" element={<RequireAuth><Analytics /></RequireAuth>} />
+            <Route path="/uploads" element={<RequireAuth><Uploads /></RequireAuth>} />
+            <Route path="/connections" element={<RequireAuth><Connections /></RequireAuth>} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/datadeletion" element={<DataDeletion />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/home" element={<Home />} />
 
                 <Route path="/test-callback" element={<TestCallbackPage />} />
                 <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
@@ -139,10 +138,10 @@ function PagesContent() {
                 <Route path="/youtube-callback" element={<YouTubeCallbackPage />} />
                 <Route path="/test-oauth" element={<TestOAuthPage />} />
 
-                <Route path="/TestOAuth" element={<TestOAuth />} />
-                <Route path="/FacebookCallback" element={<FacebookCallback />} />
-                <Route path="/TikTokCallback" element={<TikTokCallback />} />
-                <Route path="/LinkedInCallback" element={<LinkedInCallback />} />
+                <Route path="/testoauth" element={<TestOAuth />} />
+                <Route path="/facebookcallback" element={<FacebookCallback />} />
+                <Route path="/tiktokcallback" element={<TikTokCallback />} />
+                <Route path="/linkedincallback" element={<LinkedInCallback />} />
             </Routes>
         </Layout>
     );
