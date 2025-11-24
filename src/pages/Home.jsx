@@ -325,57 +325,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Before/After Section */}
-      <div className="bg-gradient-to-br from-[#3D3D2B] to-[#5E4032] py-16 md:py-24">
-        <div className="max-w-6xl mx-auto px-4 md:px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4 text-white">
-              The PRISM Effect
-            </h2>
-            <p className="text-xl text-white/80">
-              See the transformation creators experience in their first month
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            {beforeAfter.map((item, idx) => {
-              const Icon = item.icon;
-              return (
-                <Card key={idx} className="border-0 rounded-2xl overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="bg-red-50 p-6 border-b-2 border-red-200">
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-red-200">
-                          <X className="w-5 h-5 text-red-600" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-red-600 mb-1">BEFORE</p>
-                          <p className="font-semibold text-red-900">{item.before}</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-green-50 p-6">
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-green-200">
-                          <CheckCircle className="w-5 h-5 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-green-600 mb-1">AFTER PRISM</p>
-                          <p className="font-semibold text-green-900">{item.after}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          <div className="text-center mt-12">
-            <CTAButton variant="secondary" />
-          </div>
-        </div>
-      </div>
+      {/* Before/After Section - CLEARED */}
+      <div className="py-8"></div>
 
       {/* Workflow Section */}
       <div className="py-16 md:py-24 relative z-10">

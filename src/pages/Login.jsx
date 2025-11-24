@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { prism } from '@/api/prismClient'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -18,7 +17,9 @@ export default function Login() {
   const [logoError, setLogoError] = useState(false)
 
   React.useEffect(() => {
-    setPersistence(firebaseAuth, browserLocalPersistence).catch(() => {})
+    setPersistence(firebaseAuth, browserLocalPersistence).catch((e) => {
+      // Silently handle persistence errors
+    })
     const unsub = onAuthStateChanged(firebaseAuth, async (user) => {
       if (user) {
         const token = await user.getIdToken();
@@ -37,7 +38,9 @@ export default function Login() {
           localStorage.setItem('auth_token', token);
           const redirect = localStorage.getItem('redirect_after_login') || '/Dashboard';
           window.location.href = redirect;
-        } catch {}
+        } catch (e) {
+          // Silently handle token errors
+        }
         clearInterval(interval);
       }
       if (tries > 40) clearInterval(interval);
@@ -137,8 +140,8 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#F3F6FA' }}>
-      <Card className="w-full max-w-md rounded-2xl border-0 shadow-xl" style={{ background: '#FFFFFF' }}>
+    <div className="min-h-screen flex items-center justify-center p-6">
+      <Card className="w-full max-w-md rounded-2xl border shadow-xl">
         <CardContent className="p-6 md:p-8 space-y-6">
           <div className="flex flex-col items-center">
             {!logoError ? (
@@ -149,15 +152,13 @@ export default function Login() {
                 onError={() => setLogoError(true)}
               />
             ) : (
-              <div className="w-16 h-16 rounded-full shadow-md" style={{
-                background: 'conic-gradient(from 180deg at 50% 50%, #B0E3FF, #E3B0FF, #FFE3B0, #B0FFE3, #B0E3FF)'
-              }} />
+              <div className="w-16 h-16 rounded-full shadow-md bg-gradient-to-br from-blue-400 to-purple-500" />
             )}
-            <h1 className="text-2xl font-bold mt-4" style={{ color: '#0F1729' }}>
+            <h1 className="text-2xl font-bold mt-4 text-gray-900">
               {mode === 'login' ? 'Welcome to PRISM' : 'Create your account'}
             </h1>
             {mode === 'login' && (
-              <p className="text-sm mt-1" style={{ color: '#6B7280' }}>Sign in to continue</p>
+              <p className="text-sm mt-1 text-gray-600">Sign in to continue</p>
             )}
           </div>
 
@@ -172,18 +173,18 @@ export default function Login() {
                 Continue with Facebook
               </Button>
               <div className="flex items-center gap-4 py-2">
-                <div className="h-px flex-1" style={{ background: '#E5E7EB' }} />
-                <span className="text-xs" style={{ color: '#9CA3AF' }}>OR</span>
-                <div className="h-px flex-1" style={{ background: '#E5E7EB' }} />
+                <div className="h-px flex-1 bg-gray-200" />
+                <span className="text-xs text-gray-400">OR</span>
+                <div className="h-px flex-1 bg-gray-200" />
               </div>
               <Input placeholder="you@example.com" type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-11 rounded-xl" />
               <Input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} className="h-11 rounded-xl" />
               {error && <div className="text-sm text-red-600">{error}</div>}
-              <Button onClick={submit} disabled={loading} className="w-full h-11 rounded-xl" style={{ background: '#0B132B', color: '#FFFFFF' }}>
+              <Button onClick={submit} disabled={loading} className="w-full h-11 rounded-xl bg-gray-900 text-white hover:bg-gray-800">
                 {loading ? 'Please wait...' : 'Sign in'}
               </Button>
-              <div className="flex items-center justify-between text-sm" style={{ color: '#6B7280' }}>
-                <button className="underline" onClick={async () => {
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <button className="underline hover:text-gray-800" onClick={async () => {
                   try {
                     if (!email) { setError('Enter your email to reset'); return }
                     await sendPasswordResetEmail(firebaseAuth, email)
@@ -193,18 +194,18 @@ export default function Login() {
                   }
                 }}>Forgot password?</button>
                 <div>
-                  Need an account? <button className="underline" onClick={() => setMode('register')}>Sign up</button>
+                  Need an account? <button className="underline hover:text-gray-800" onClick={() => setMode('register')}>Sign up</button>
                 </div>
               </div>
             </div>
           ) : (
             <div className="space-y-3">
-              <button className="text-sm" style={{ color: '#6B7280' }} onClick={() => setMode('login')}>← Back to sign in</button>
+              <button className="text-sm text-gray-600 hover:text-gray-800" onClick={() => setMode('login')}>← Back to sign in</button>
               <Input placeholder="you@example.com" type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-11 rounded-xl" />
               <Input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} className="h-11 rounded-xl" />
               <Input placeholder="Confirm Password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="h-11 rounded-xl" />
               {error && <div className="text-sm text-red-600">{error}</div>}
-              <Button onClick={submit} disabled={loading} className="w-full h-11 rounded-xl" style={{ background: '#0B132B', color: '#FFFFFF' }}>
+              <Button onClick={submit} disabled={loading} className="w-full h-11 rounded-xl bg-gray-900 text-white hover:bg-gray-800">
                 {loading ? 'Please wait...' : 'Create account'}
               </Button>
             </div>

@@ -68,7 +68,7 @@ const navigationItems = [
   },
 ];
 
-export default function Layout({ children }) {
+export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const [userInfo, setUserInfo] = useState(null);
 
@@ -92,8 +92,10 @@ export default function Layout({ children }) {
     };
   }, []);
 
+  const hideShell = location.pathname === '/' || location.pathname.toLowerCase() === '/home' || location.pathname.toLowerCase() === '/login';
+
   return (
-    <SidebarProvider>
+    <>
       <style>{`
         :root {
           --background: linear-gradient(135deg, #FDE7E7 0%, #FAE9DC 20%, #FCEFE6 40%, #EBF4E5 60%, #E0EFF4 80%, #E7E0F4 100%);
@@ -222,136 +224,136 @@ export default function Layout({ children }) {
       `}</style>
       <div className="min-h-screen flex w-full relative overflow-hidden" 
            style={{ 
-             background: 'linear-gradient(135deg, #FDE7E7 0%, #FAE9DC 15%, #FCEFE6 30%, #EBF4E5 45%, #E0EFF4 60%, #E7E0F4 75%, #F4E5E8 90%, #FDE7E7 100%)' // Updated
+             background: hideShell ? 'white' : 'linear-gradient(135deg, #FDE7E7 0%, #FAE9DC 15%, #FCEFE6 30%, #EBF4E5 45%, #E0EFF4 60%, #E7E0F4 75%, #F4E5E8 90%, #FDE7E7 100%)'
            }}>
-        {/* Layered ethereal background effects */}
-        <div className="fixed inset-0 opacity-20 pointer-events-none"
-             style={{
-               backgroundImage: `
-                 radial-gradient(circle at 20% 30%, rgba(224, 122, 95, 0.4) 0%, transparent 50%), /* Updated */
-                 radial-gradient(circle at 80% 70%, rgba(140, 160, 170, 0.4) 0%, transparent 50%), /* Updated */
-                 radial-gradient(circle at 50% 50%, rgba(162, 202, 209, 0.3) 0%, transparent 70%) /* Updated */
-               `,
-               animation: 'pulse-glow 8s ease-in-out infinite'
-             }}
-        />
+        {/* Layered ethereal background effects - HIDDEN for Home/Login/root */}
+        {!hideShell && (
+          <div className="fixed inset-0 opacity-20 pointer-events-none"
+               style={{
+                 backgroundImage: `
+                   radial-gradient(circle at 20% 30%, rgba(224, 122, 95, 0.4) 0%, transparent 50%), /* Updated */
+                   radial-gradient(circle at 80% 70%, rgba(140, 160, 170, 0.4) 0%, transparent 50%), /* Updated */
+                   radial-gradient(circle at 50% 50%, rgba(162, 202, 209, 0.3) 0%, transparent 70%) /* Updated */
+                 `,
+                 animation: 'pulse-glow 8s ease-in-out infinite'
+               }}
+          />
+        )}
         
-        {/* Floating rainbow particles */}
-        <div className="fixed top-20 left-1/4 w-32 h-32 rounded-full opacity-10 floating-particle"
-             style={{
-               background: 'radial-gradient(circle, rgba(224, 122, 95, 0.8) 0%, transparent 70%)', /* Updated */
-               filter: 'blur(20px)'
-             }}
-        />
-        <div className="fixed bottom-40 right-1/3 w-40 h-40 rounded-full opacity-10 floating-particle"
-             style={{
-               background: 'radial-gradient(circle, rgba(140, 160, 170, 0.8) 0%, transparent 70%)', /* Updated */
-               filter: 'blur(25px)',
-               animationDelay: '2s'
-             }}
-        />
-        <div className="fixed top-1/2 right-1/4 w-24 h-24 rounded-full opacity-10 floating-particle"
-             style={{
-               background: 'radial-gradient(circle, rgba(162, 202, 209, 0.8) 0%, transparent 70%)', /* Updated */
-               filter: 'blur(15px)',
-               animationDelay: '4s'
-             }}
-        />
+        {/* Floating rainbow particles - HIDDEN for Home/Login/root */}
+        {!hideShell && (
+          <>
+            <div className="fixed top-20 left-1/4 w-32 h-32 rounded-full opacity-10 floating-particle"
+                 style={{
+                   background: 'radial-gradient(circle, rgba(224, 122, 95, 0.8) 0%, transparent 70%)', /* Updated */
+                   filter: 'blur(20px)'
+                 }}
+            />
+            <div className="fixed bottom-40 right-1/3 w-40 h-40 rounded-full opacity-10 floating-particle"
+                 style={{
+                   background: 'radial-gradient(circle, rgba(140, 160, 170, 0.8) 0%, transparent 70%)', /* Updated */
+                   filter: 'blur(25px)',
+                   animationDelay: '2s'
+                 }}
+            />
+            <div className="fixed top-1/2 right-1/4 w-24 h-24 rounded-full opacity-10 floating-particle"
+                 style={{
+                   background: 'radial-gradient(circle, rgba(162, 202, 209, 0.8) 0%, transparent 70%)', /* Updated */
+                   filter: 'blur(15px)',
+                   animationDelay: '4s'
+                 }}
+            />
+          </>
+        )}
         
-        <Sidebar className="glass-sidebar border-r-0 shadow-2xl">
-          <SidebarHeader className="p-5 border-b"
-                        style={{ 
-                          borderColor: 'var(--border)', /* Updated */
-                          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(224, 122, 95, 0.15) 100%)' /* Updated */
-                        }}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center crystal-shine ethereal-glow rainbow-gradient" 
-                   style={{ 
-                     boxShadow: '0 4px 20px rgba(224, 122, 95, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6)' /* Updated */
-                   }}>
-                <Sparkles className="w-5 h-5 text-white" />
+        {/* Sidebar - HIDDEN for Home/Login/root */}
+        {!hideShell ? (
+          <SidebarProvider>
+            <Sidebar className="glass-sidebar border-r-0 shadow-2xl">
+            <SidebarHeader className="p-5 border-b"
+                          style={{ 
+                            borderColor: 'var(--border)', /* Updated */
+                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(224, 122, 95, 0.15) 100%)' /* Updated */
+                          }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center crystal-shine ethereal-glow rainbow-gradient" 
+                     style={{ 
+                       boxShadow: '0 4px 20px rgba(224, 122, 95, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6)' /* Updated */
+                     }}>
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-lg" style={{ 
+                    color: 'var(--primary-dark)', /* Updated */
+                    textShadow: '0 1px 2px rgba(255, 255, 255, 0.3)'
+                  }}>Prism</h2>
+                  <p className="text-xs font-medium" style={{ color: 'var(--primary)' }}>Viral Content AI</p> {/* Updated */}
+                </div>
               </div>
-              <div>
-                <h2 className="font-bold text-lg" style={{ 
-                  color: 'var(--primary-dark)', /* Updated */
-                  textShadow: '0 1px 2px rgba(255, 255, 255, 0.3)'
-                }}>Prism</h2>
-                <p className="text-xs font-medium" style={{ color: 'var(--primary)' }}>Viral Content AI</p> {/* Updated */}
-              </div>
-            </div>
-          </SidebarHeader>
-          
-          <SidebarContent className="px-3 py-4">
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {navigationItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton 
-                        asChild 
-                        className="hover:bg-opacity-80 transition-all duration-300 rounded-2xl mb-1.5 crystal-shine relative overflow-hidden"
-                        style={{
-                          background: location.pathname === item.url 
-                            ? 'linear-gradient(135deg, rgba(224, 122, 95, 0.4) 0%, rgba(181, 196, 159, 0.4) 50%, rgba(162, 202, 209, 0.4) 100%)' /* Updated */
-                            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)',
-                          color: location.pathname === item.url ? 'var(--text)' : 'var(--text-muted)', /* Updated */
-                          boxShadow: location.pathname === item.url 
-                            ? '0 4px 20px rgba(224, 122, 95, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 0 rgba(224, 122, 95, 0.3)' /* Updated */
-                            : 'none',
-                          border: location.pathname === item.url 
-                            ? '1px solid rgba(224, 122, 95, 0.6)' /* Updated */
-                            : '1px solid transparent',
-                          fontWeight: location.pathname === item.url ? '700' : '500',
-                          fontSize: '15px',
-                          backdropFilter: location.pathname === item.url ? 'blur(12px)' : 'blur(8px)'
-                        }}
-                      >
-                        <Link to={item.url} className="flex items-center gap-3 px-4 py-3">
-                          <item.icon className="w-5 h-5" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
+            </SidebarHeader>
+            
+            <SidebarContent className="px-3 py-4">
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {navigationItems.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton 
+                          asChild 
+                          className="hover:bg-opacity-80 transition-all duration-300 rounded-2xl mb-1.5 crystal-shine relative overflow-hidden"
+                          style={{
+                            background: location.pathname === item.url 
+                              ? 'linear-gradient(135deg, rgba(224, 122, 95, 0.4) 0%, rgba(181, 196, 159, 0.4) 50%, rgba(162, 202, 209, 0.4) 100%)' /* Updated */
+                              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)',
+                            color: location.pathname === item.url ? 'var(--text)' : 'var(--text-muted)', /* Updated */
+                            boxShadow: location.pathname === item.url 
+                              ? '0 4px 20px rgba(224, 122, 95, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 0 rgba(224, 122, 95, 0.3)' /* Updated */
+                              : 'none',
+                            border: location.pathname === item.url 
+                              ? '1px solid rgba(224, 122, 95, 0.6)' /* Updated */
+                              : '1px solid transparent',
+                            fontWeight: location.pathname === item.url ? '700' : '500',
+                            fontSize: '15px',
+                            backdropFilter: location.pathname === item.url ? 'blur(12px)' : 'blur(8px)'
+                          }}
+                        >
+                          <Link to={item.url} className="flex items-center gap-3 px-4 py-3">
+                            <item.icon className="w-5 h-5" />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
 
-          <SidebarFooter className="p-4 mt-auto border-t" style={{ 
-            borderColor: 'var(--border)', /* Updated */
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(224, 122, 95, 0.15) 100%)' /* Updated */
-          }}>
-            <div className="flex items-center gap-3 px-2">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center crystal-shine ethereal-glow rainbow-gradient" 
-                   style={{ 
-                     boxShadow: '0 4px 16px rgba(224, 122, 95, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5)' /* Updated */
-                   }}>
-                <User className="w-4 h-4 text-white" />
+            <SidebarFooter className="p-4 mt-auto border-t" style={{ 
+              borderColor: 'var(--border)', /* Updated */
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(224, 122, 95, 0.15) 100%)' /* Updated */
+            }}>
+              <div className="flex items-center gap-3 px-2">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center crystal-shine ethereal-glow rainbow-gradient" 
+                     style={{ 
+                       boxShadow: '0 4px 16px rgba(224, 122, 95, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5)' /* Updated */
+                     }}>
+                  <User className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm truncate" style={{ 
+                    color: 'var(--primary-dark)', 
+                    textShadow: '0 1px 2px rgba(255, 255, 255, 0.3)'
+                  }}>{userInfo?.name || userInfo?.email || 'Signed Out'}</p>
+                  <p className="text-xs truncate" style={{ color: 'var(--primary)' }}>{userInfo ? 'Signed In' : 'Guest'}</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate" style={{ 
-                  color: 'var(--primary-dark)', 
-                  textShadow: '0 1px 2px rgba(255, 255, 255, 0.3)'
-                }}>{userInfo?.name || userInfo?.email || 'Signed Out'}</p>
-                <p className="text-xs truncate" style={{ color: 'var(--primary)' }}>{userInfo ? 'Signed In' : 'Guest'}</p>
-              </div>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
-
-        <main className="flex-1 flex flex-col">
-          <header className="px-6 py-4 md:hidden glass-card border-b"
-                  style={{ borderColor: 'var(--border)' }}> {/* Using variable */}
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="p-2 rounded-lg transition-colors duration-200" 
-                             style={{ color: 'var(--accent-dark)' }} /> {/* Using variable */}
-              <h1 className="text-xl font-semibold" style={{ color: 'var(--primary-dark)' }}>Prism</h1> {/* Using variable */}
-            </div>
-          </header>
-
-          <div className="flex-1 overflow-auto">
-          {/* TikTok/Facebook OAuth fallback */}
+            </SidebarFooter>
+          </Sidebar>
+          </SidebarProvider>
+        ) : (
+          <div className="flex-1">
+            {/* TikTok/Facebook OAuth fallback */}
             <script dangerouslySetInnerHTML={{
             __html: `
             (() => {
@@ -366,9 +368,9 @@ export default function Layout({ children }) {
             }} />
             {children}
           </div>
-        </main>
+        )}
       </div>
-    </SidebarProvider>
+    </>
   );
 }
 
