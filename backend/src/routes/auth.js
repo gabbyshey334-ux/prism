@@ -42,14 +42,20 @@ router.post('/logout', (req, res) => {
 router.get('/me', async (req, res) => {
   try {
     const token = getTokenFromReq(req);
-    if (!token) return res.status(401).json({ error: 'no_token' });
-    // Try Supabase first
-    const { data, error } = await supabaseClient.auth.getUser(token);
-    if (!error && data?.user) return res.json({ user: data.user });
-    // Fallback to Firebase
+    console.log('=== /auth/me Request ===');
+    console.log('Token present:', token ? 'yes' : 'no');
+    
+    if (!token) {
+      console.log('Error: No token provided');
+      return res.status(401).json({ error: 'no_token', message: 'No authentication token provided' });
+    }
+    
+    // Try Firebase FIRST (since you're using Firebase auth)
     try {
+      console.log('Attempting Firebase verification...');
       const admin = require('firebase-admin');
       if (!admin.apps.length) {
+        console.log('Initializing Firebase Admin...');
         admin.initializeApp({
           credential: admin.credential.cert({
             projectId: process.env.FIREBASE_PROJECT_ID,
@@ -59,13 +65,42 @@ router.get('/me', async (req, res) => {
         });
       }
       const decoded = await admin.auth().verifyIdToken(token);
-      const user = { id: decoded.uid, email: decoded.email, provider: decoded.firebase?.sign_in_provider };
+      const user = { 
+        id: decoded.uid, 
+        email: decoded.email, 
+        name: decoded.name,
+        picture: decoded.picture,
+        provider: decoded.firebase?.sign_in_provider 
+      };
+      console.log('Firebase auth SUCCESS, user ID:', user.id);
       return res.json({ user });
     } catch (fbErr) {
-      return res.status(401).json({ error: 'invalid_token' });
+      console.log('Firebase auth failed:', fbErr.message);
     }
+    
+    // Fallback to Supabase
+    try {
+      console.log('Attempting Supabase verification...');
+      const { data, error } = await supabaseClient.auth.getUser(token);
+      if (!error && data?.user) {
+        console.log('Supabase auth SUCCESS, user ID:', data.user.id);
+        return res.json({ user: data.user });
+      }
+      if (error) {
+        console.log('Supabase auth error:', error.message);
+      }
+    } catch (sbErr) {
+      console.log('Supabase auth failed:', sbErr.message);
+    }
+    
+    console.log('All auth methods failed');
+    return res.status(401).json({ 
+      error: 'invalid_token',
+      message: 'Could not verify authentication token with Firebase or Supabase' 
+    });
   } catch (e) {
-    return res.status(500).json({ error: 'me_failed' });
+    console.error('Unexpected error in /auth/me:', e);
+    return res.status(500).json({ error: 'me_failed', message: e.message });
   }
 });
 

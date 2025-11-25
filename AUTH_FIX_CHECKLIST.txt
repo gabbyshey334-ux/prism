@@ -1,0 +1,183 @@
+================================================================================
+                    FIX 401 AUTHENTICATION ERROR
+================================================================================
+
+THE PROBLEM:
+Your backend can't verify your Firebase (Google) login token because
+Firebase credentials are missing in DigitalOcean.
+
+THE FIX:
+Add 3 Firebase environment variables to DigitalOcean.
+
+================================================================================
+
+STEP 1: CHECK DIGITALOCEAN ENVIRONMENT VARIABLES
+================================================================================
+
+[ ] 1.1 - Opened https://cloud.digitalocean.com/apps
+[ ] 1.2 - Clicked on: octopus-app-73pgz
+[ ] 1.3 - Clicked: Settings tab
+[ ] 1.4 - Clicked: Environment Variables
+[ ] 1.5 - Checked if these 3 exist:
+          - FIREBASE_PROJECT_ID
+          - FIREBASE_CLIENT_EMAIL
+          - FIREBASE_PRIVATE_KEY
+
+ARE ALL 3 PRESENT?
+[ ] YES - Skip to Step 3
+[ ] NO - Continue to Step 2
+
+
+STEP 2: ADD MISSING FIREBASE VARIABLES
+================================================================================
+
+For EACH missing variable, click "Add Variable" and enter:
+
+[ ] 2.1 - Added FIREBASE_PROJECT_ID
+          Value: prism-676a3
+
+[ ] 2.2 - Added FIREBASE_CLIENT_EMAIL
+          Value: firebase-adminsdk-fbsvc@prism-676a3.iam.gserviceaccount.com
+
+[ ] 2.3 - Added FIREBASE_PRIVATE_KEY
+          Value: (copy entire key from SOLVE_401_NOW.md including 
+                  -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----)
+
+[ ] 2.4 - Clicked "Save"
+
+[ ] 2.5 - Waiting for automatic redeploy (3-5 min)...
+
+[ ] 2.6 - Deployment shows: LIVE
+
+
+STEP 3: DEPLOY UPDATED CODE
+================================================================================
+
+[ ] 3.1 - Opened terminal in project directory
+
+[ ] 3.2 - Ran: git add .
+
+[ ] 3.3 - Ran: git commit -m "fix: improve Firebase auth"
+
+[ ] 3.4 - Ran: git push origin main
+
+[ ] 3.5 - Vercel deployment started
+
+[ ] 3.6 - Waited for Vercel deploy (1-2 min)
+
+[ ] 3.7 - Deployment Status: Ready ✓
+
+
+STEP 4: CLEAR BROWSER AND TEST
+================================================================================
+
+[ ] 4.1 - Opened: https://prism-five-livid.vercel.app
+
+[ ] 4.2 - Hard refreshed: Ctrl+Shift+R (or Cmd+Shift+R on Mac)
+
+[ ] 4.3 - Opened browser console (F12)
+
+[ ] 4.4 - Tried to create a brand
+
+[ ] 4.5 - Result:
+          [ ] ✅ SUCCESS - Brand created!
+          [ ] ❌ STILL FAILING - Continue to Step 5
+
+
+STEP 5: CHECK DIGITALOCEAN LOGS (If Still Failing)
+================================================================================
+
+[ ] 5.1 - Went to: https://cloud.digitalocean.com/apps
+
+[ ] 5.2 - Clicked: octopus-app-73pgz
+
+[ ] 5.3 - Clicked: Runtime Logs tab
+
+[ ] 5.4 - Tried creating brand in app
+
+[ ] 5.5 - Watched logs appear
+
+What do the logs say?
+
+[ ] "Firebase auth SUCCESS" → Auth is working!
+    Problem might be elsewhere
+
+[ ] "Firebase auth failed" → Firebase credentials wrong
+    Double-check the 3 variables
+
+[ ] "Token present: no" → Frontend not sending token
+    Try logging out and back in
+
+[ ] Something else → Write it here:
+    _________________________________________________________________
+    _________________________________________________________________
+    _________________________________________________________________
+
+
+STEP 6: VERIFY ALL ENVIRONMENT VARIABLES
+================================================================================
+
+In DigitalOcean, verify these ALL exist:
+
+[ ] SUPABASE_SERVICE_KEY (starts with eyJhbG...)
+[ ] FIREBASE_PROJECT_ID (prism-676a3)
+[ ] FIREBASE_CLIENT_EMAIL (firebase-adminsdk-fbsvc@...)
+[ ] FIREBASE_PRIVATE_KEY (starts with -----BEGIN PRIVATE KEY-----)
+[ ] FRONTEND_URLS (includes your Vercel URL)
+
+Missing any? Add them and restart DigitalOcean app.
+
+
+FINAL VERIFICATION
+================================================================================
+
+[ ] Can create brands ✓
+[ ] Can edit brands ✓
+[ ] Can delete brands ✓
+[ ] No 401 errors in console ✓
+[ ] /auth/me returns user data ✓
+
+
+COMMON ISSUES
+================================================================================
+
+Issue: "FIREBASE_PRIVATE_KEY formatting error"
+Fix: In DigitalOcean, the key might need to be one line with \n
+     OR multiple lines as-is. Try both formats.
+
+Issue: "Still getting 401 after adding variables"
+Fix: Make sure you clicked SAVE and waited for redeploy.
+     Check Runtime Logs to confirm variables are loaded.
+
+Issue: "/auth/me still fails"
+Fix: Hard refresh browser (Ctrl+Shift+R)
+     Clear browser cache
+     Log out and log back in
+
+
+TIME TO COMPLETE
+================================================================================
+
+Check variables:     2 min
+Add variables:       3 min
+Deploy code:         1 min
+Wait for deploys:    5 min
+Test:                2 min
+TOTAL:              13 min
+
+
+NOTES
+================================================================================
+
+
+
+
+
+================================================================================
+                              END OF CHECKLIST
+================================================================================
+
+Status: [ ] IN PROGRESS    [ ] COMPLETED    [ ] NEEDS HELP
+
+If completed successfully, delete this file.
+If need help, share the logs from Step 5.

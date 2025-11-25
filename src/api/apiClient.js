@@ -125,19 +125,48 @@ export const auth = {
 // Add token to all requests if it exists
 api.interceptors.request.use(async (config) => {
   let token = auth.getAccessToken();
+  
   if (!token) {
     try {
       const u = firebaseAuth?.currentUser;
       if (u) {
+        console.log('Getting fresh token from Firebase user...');
         token = await u.getIdToken();
+        console.log('Token obtained:', token ? 'yes' : 'no');
+      } else {
+        console.warn('No Firebase user logged in');
       }
-    } catch {}
+    } catch (error) {
+      console.error('Error getting Firebase token:', error);
+    }
+  } else {
+    console.log('Using cached token');
   }
+  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('Authorization header set for request to:', config.url);
+  } else {
+    console.warn('No token available for request to:', config.url);
   }
+  
   return config;
+}, (error) => {
+  console.error('Request interceptor error:', error);
+  return Promise.reject(error);
 });
+
+// Add response interceptor to handle auth errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.error('Authentication failed (401):', error.response.data);
+      console.error('Please check: 1) You are logged in, 2) Token is valid, 3) Backend can verify token');
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Social Media API
 export const social = {
