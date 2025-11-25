@@ -191,6 +191,11 @@ export default function BrandsPage() {
       setNewBrand({ name: "", description: "", website_url: "", primary_color: "#88925D" });
       toast.success("Brand created!");
     },
+    onError: (error) => {
+      console.error("Brand creation error:", error);
+      const message = error.response?.data?.error || error.message || "Failed to create brand";
+      toast.error(`Error: ${message}`);
+    }
   });
 
   const updateBrandMutation = useMutation({
@@ -199,6 +204,11 @@ export default function BrandsPage() {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       toast.success("Brand updated!");
     },
+    onError: (error) => {
+      console.error("Brand update error:", error);
+      const message = error.response?.data?.error || error.message || "Failed to update brand";
+      toast.error(`Error: ${message}`);
+    }
   });
 
   const deleteBrandMutation = useMutation({
@@ -207,6 +217,11 @@ export default function BrandsPage() {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       toast.success("Brand deleted!");
     },
+    onError: (error) => {
+      console.error("Brand deletion error:", error);
+      const message = error.response?.data?.error || error.message || "Failed to delete brand";
+      toast.error(`Error: ${message}`);
+    }
   });
 
   const handleDeleteBrand = (id) => {

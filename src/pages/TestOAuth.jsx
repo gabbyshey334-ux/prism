@@ -85,7 +85,7 @@ export default function TestOAuth() {
               Expected Endpoint:
             </h3>
             <code className="text-xs break-all" style={{ color: '#8B7355' }}>
-              POST https://api.prism-app.com/api/apps//functions/socialMediaConnect
+              POST {import.meta.env.VITE_API_BASE_URL || 'https://octopus-app-73pgz.ondigitalocean.app/api'}/apps//functions/socialMediaConnect
             </code>
           </div>
 

@@ -1,0 +1,132 @@
+================================================================================
+                    BRAND CREATION FIX - DEPLOY CHECKLIST
+================================================================================
+
+DATE: _________________    TIME STARTED: _________________
+
+
+STEP 1: UPDATE DIGITALOCEAN BACKEND
+================================================================================
+[ ] 1.1 - Opened https://cloud.digitalocean.com/apps
+[ ] 1.2 - Clicked on app: octopus-app-73pgz
+[ ] 1.3 - Clicked Settings tab
+[ ] 1.4 - Clicked "Environment Variables"
+[ ] 1.5 - Found or Added: SUPABASE_SERVICE_KEY
+[ ] 1.6 - Pasted value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+[ ] 1.7 - Clicked Save
+[ ] 1.8 - Waiting for redeploy (2-3 min)...
+[ ] 1.9 - Deployment Status: LIVE
+
+Time completed: _________________
+
+
+STEP 2: UPDATE VERCEL FRONTEND  
+================================================================================
+[ ] 2.1 - Opened https://vercel.com/dashboard
+[ ] 2.2 - Selected Prism project
+[ ] 2.3 - Went to Settings → Environment Variables
+[ ] 2.4 - Clicked "Add New"
+[ ] 2.5 - Name: VITE_API_BASE_URL
+[ ] 2.6 - Value: https://octopus-app-73pgz.ondigitalocean.app/api
+[ ] 2.7 - Checked: Production ✓ Preview ✓ Development ✓
+[ ] 2.8 - Clicked Save
+
+Time completed: _________________
+
+
+STEP 3: DEPLOY CODE CHANGES
+================================================================================
+[ ] 3.1 - Opened terminal in project directory
+[ ] 3.2 - Ran: git add .
+[ ] 3.3 - Ran: git commit -m "fix: brand creation"
+[ ] 3.4 - Ran: git push origin main
+[ ] 3.5 - Vercel deployment started
+[ ] 3.6 - Waiting for Vercel deploy (1-2 min)...
+[ ] 3.7 - Deployment Status: Ready ✓
+
+Time completed: _________________
+
+
+STEP 4: VERIFY BACKEND
+================================================================================
+[ ] 4.1 - Ran: curl https://octopus-app-73pgz.ondigitalocean.app/api/health
+[ ] 4.2 - Received: {"status":"ok","service":"prism-backend"}
+[ ] 4.3 - Backend Status: ✓ WORKING
+
+Time completed: _________________
+
+
+STEP 5: TEST BRAND CREATION
+================================================================================
+[ ] 5.1 - Opened: https://prism-five-livid.vercel.app
+[ ] 5.2 - Opened browser console (F12)
+[ ] 5.3 - Logged in (if needed)
+[ ] 5.4 - Navigated to Brands page
+[ ] 5.5 - Clicked "Create Brand"
+[ ] 5.6 - Filled form:
+          Name: Test Brand
+          Description: Testing the fix
+          Website: https://example.com
+          Color: (any)
+[ ] 5.7 - Clicked "Create Brand"
+[ ] 5.8 - Saw toast: "Brand created!" ✓
+[ ] 5.9 - Brand appears in list ✓
+[ ] 5.10 - No errors in console ✓
+
+Time completed: _________________
+
+
+STEP 6: TEST EDIT FUNCTIONALITY
+================================================================================
+[ ] 6.1 - Clicked on created brand
+[ ] 6.2 - Changed brand name
+[ ] 6.3 - Saved changes
+[ ] 6.4 - Saw toast: "Brand updated!" ✓
+[ ] 6.5 - Changes reflected in list ✓
+
+Time completed: _________________
+
+
+STEP 7: TEST DELETE FUNCTIONALITY
+================================================================================
+[ ] 7.1 - Clicked menu (⋮) on test brand
+[ ] 7.2 - Clicked Delete
+[ ] 7.3 - Confirmed deletion
+[ ] 7.4 - Saw toast: "Brand deleted!" ✓
+[ ] 7.5 - Brand removed from list ✓
+
+Time completed: _________________
+
+
+FINAL VERIFICATION
+================================================================================
+[ ] All steps completed successfully
+[ ] Can create brands ✓
+[ ] Can edit brands ✓
+[ ] Can delete brands ✓
+[ ] Error messages show if something fails ✓
+[ ] No errors in browser console ✓
+
+TOTAL TIME: _________________
+
+
+NOTES / ISSUES ENCOUNTERED:
+================================================================================
+
+
+
+================================================================================
+
+
+SIGN-OFF
+================================================================================
+Completed by: _________________    Date: _________________
+
+Status: [ ] SUCCESS    [ ] NEEDS TROUBLESHOOTING
+
+If troubleshooting needed, see: BRAND_CREATION_FIX.md
+
+
+================================================================================
+                              END OF CHECKLIST
+================================================================================

@@ -9,7 +9,7 @@ const BYPASS_AUTH = false; // Set to false when ready to test real auth
 
 // Create axios instance
 const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL)
-  || (import.meta.env && import.meta.env.PROD ? 'https://api.prism-app.com/api' : 'http://localhost:4000/api');
+  || (import.meta.env && import.meta.env.PROD ? 'https://octopus-app-73pgz.ondigitalocean.app/api' : 'http://localhost:4000/api');
 const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
@@ -123,8 +123,16 @@ export const auth = {
 };
 
 // Add token to all requests if it exists
-api.interceptors.request.use((config) => {
-  const token = auth.getAccessToken();
+api.interceptors.request.use(async (config) => {
+  let token = auth.getAccessToken();
+  if (!token) {
+    try {
+      const u = firebaseAuth?.currentUser;
+      if (u) {
+        token = await u.getIdToken();
+      }
+    } catch {}
+  }
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

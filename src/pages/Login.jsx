@@ -24,7 +24,7 @@ export default function Login() {
       if (user) {
         const token = await user.getIdToken();
         localStorage.setItem('auth_token', token);
-        const redirect = localStorage.getItem('redirect_after_login') || '/Dashboard';
+        const redirect = localStorage.getItem('redirect_after_login') || '/dashboard';
         window.location.href = redirect;
       }
     });
@@ -36,7 +36,7 @@ export default function Login() {
         try {
           const token = await u.getIdToken();
           localStorage.setItem('auth_token', token);
-          const redirect = localStorage.getItem('redirect_after_login') || '/Dashboard';
+          const redirect = localStorage.getItem('redirect_after_login') || '/dashboard';
           window.location.href = redirect;
         } catch (e) {
           // Silently handle token errors
@@ -81,7 +81,7 @@ export default function Login() {
         const token = await cred.user.getIdToken()
         localStorage.setItem('auth_token', token)
       }
-      const redirect = localStorage.getItem('redirect_after_login') || '/Dashboard'
+      const redirect = localStorage.getItem('redirect_after_login') || '/dashboard'
       window.location.href = redirect
     } catch (e) {
       const msg = e?.message || 'Authentication failed'
@@ -97,7 +97,7 @@ export default function Login() {
       const result = await retryFirebase(() => signInWithPopup(firebaseAuth, provider));
       const token = await result.user.getIdToken();
       localStorage.setItem('auth_token', token);
-      const redirect = localStorage.getItem('redirect_after_login') || '/Dashboard';
+      const redirect = localStorage.getItem('redirect_after_login') || '/dashboard';
       window.location.href = redirect;
     } catch (e) {
       const code = e?.code || ''
@@ -121,7 +121,7 @@ export default function Login() {
       const result = await retryFirebase(() => signInWithPopup(firebaseAuth, provider));
       const token = await result.user.getIdToken();
       localStorage.setItem('auth_token', token);
-      const redirect = localStorage.getItem('redirect_after_login') || '/Dashboard';
+      const redirect = localStorage.getItem('redirect_after_login') || '/dashboard';
       window.location.href = redirect;
     } catch (e) {
       const code = e?.code || ''
