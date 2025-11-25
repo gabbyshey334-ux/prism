@@ -6,9 +6,27 @@ async function getUserId(req) {
     const authHeader = req.headers.authorization || ''
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
     if (!token) return null
-    const { data, error } = await supabaseClient.auth.getUser(token)
-    if (error) return null
-    return data?.user?.id || null
+    // Try Supabase
+    try {
+      const { data, error } = await supabaseClient.auth.getUser(token)
+      if (!error && data?.user?.id) return data.user.id
+    } catch {}
+    // Fallback to Firebase Admin
+    try {
+      const admin = require('firebase-admin')
+      if (!admin.apps.length) {
+        admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n')
+          })
+        })
+      }
+      const decoded = await admin.auth().verifyIdToken(token)
+      return decoded?.uid || null
+    } catch {}
+    return null
   } catch { return null }
 }
 
