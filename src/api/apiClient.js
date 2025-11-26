@@ -8,8 +8,9 @@ const DEV_MODE = typeof import.meta !== 'undefined' && import.meta.env && import
 const BYPASS_AUTH = false; // Set to false when ready to test real auth
 
 // Create axios instance
+const DEFAULT_API_BASE = 'https://octopus-app-73pgz.ondigitalocean.app/api';
 const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL)
-  || (import.meta.env && import.meta.env.PROD ? 'https://octopus-app-73pgz.ondigitalocean.app/api' : 'http://localhost:4000/api');
+  || DEFAULT_API_BASE;
 const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,

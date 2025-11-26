@@ -188,7 +188,13 @@ export default function BrandsPage() {
       console.log('Creating brand with data:', data);
       return prism.entities.Brand.create(data);
     },
-    onSuccess: () => {
+    onSuccess: (createdBrand) => {
+      queryClient.setQueryData(['brands'], (old = []) => {
+        const exists = Array.isArray(old) && old.some(b => b.id === createdBrand?.id);
+        return exists 
+          ? old.map(b => (b.id === createdBrand.id ? createdBrand : b))
+          : [createdBrand, ...(Array.isArray(old) ? old : [])];
+      });
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       setShowCreateDialog(false);
       setNewBrand({ name: "", description: "", website_url: "", primary_color: "#88925D" });
