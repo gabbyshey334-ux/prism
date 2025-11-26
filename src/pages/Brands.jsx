@@ -184,7 +184,10 @@ export default function BrandsPage() {
   });
 
   const createBrandMutation = useMutation({
-    mutationFn: (data) => prism.entities.Brand.create(data),
+    mutationFn: (data) => {
+      console.log('Creating brand with data:', data);
+      return prism.entities.Brand.create(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       setShowCreateDialog(false);
@@ -193,8 +196,12 @@ export default function BrandsPage() {
     },
     onError: (error) => {
       console.error("Brand creation error:", error);
-      const message = error.response?.data?.error || error.message || "Failed to create brand";
-      toast.error(`Error: ${message}`);
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+      const errorData = error.response?.data;
+      const message = errorData?.message || errorData?.error || error.message || "Failed to create brand";
+      const details = errorData?.details || '';
+      toast.error(`Error: ${message}${details ? ' - ' + details : ''}`);
     }
   });
 
