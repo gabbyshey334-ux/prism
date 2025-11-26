@@ -2,27 +2,37 @@ const router = require('express').Router();
 
 router.post('/connect', (req, res) => {
   const { platform } = req.body;
+  const backendUrl = process.env.BACKEND_URL || process.env.API_URL || 'https://octopus-app-73pgz.ondigitalocean.app';
   let authUrl = null;
+  
   switch ((platform || '').toLowerCase()) {
     case 'tiktok':
-      authUrl = `${process.env.FRONTEND_URL?.replace(/\/$/, '') || 'http://localhost:5174'}/oauth-callback?platform=tiktok&start=${encodeURIComponent('http://localhost:4000/api/oauth/tiktok')}`;
-      authUrl = 'http://localhost:4000/api/oauth/tiktok';
+      authUrl = `${backendUrl}/api/oauth/tiktok`;
       break;
     case 'linkedin':
-      authUrl = 'http://localhost:4000/api/oauth/linkedin';
+      authUrl = `${backendUrl}/api/oauth/linkedin`;
       break;
     case 'google':
-      authUrl = 'http://localhost:4000/api/oauth/google';
+      authUrl = `${backendUrl}/api/oauth/google`;
       break;
     case 'facebook':
-      authUrl = 'http://localhost:4000/api/oauth/facebook';
+      authUrl = `${backendUrl}/api/oauth/facebook`;
       break;
     case 'youtube':
-      authUrl = 'http://localhost:4000/api/oauth/youtube';
+      authUrl = `${backendUrl}/api/oauth/youtube`;
+      break;
+    case 'instagram':
+      authUrl = `${backendUrl}/api/oauth/instagram`;
+      break;
+    case 'twitter':
+    case 'x':
+      authUrl = `${backendUrl}/api/oauth/twitter`;
       break;
     default:
       return res.status(400).json({ error: 'unknown_platform' });
   }
+  
+  console.log(`OAuth connect for ${platform}: ${authUrl}`);
   return res.json({ authUrl });
 });
 
