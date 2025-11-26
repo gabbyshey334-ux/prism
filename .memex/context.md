@@ -12,6 +12,7 @@
 
 ### Backend
 - **Framework:** Node.js + Express
+- **Node Version:** 20.x (REQUIRED - Supabase/Firebase require Node 20+)
 - **Deployment:** DigitalOcean App Platform (https://octopus-app-73pgz.ondigitalocean.app)
 - **Database:** Supabase (PostgreSQL)
 - **Auth Verification:** Firebase Admin SDK
@@ -32,8 +33,9 @@ VITE_FIREBASE_PROJECT_ID=prism-676a3
 VITE_FIREBASE_STORAGE_BUCKET=prism-676a3.firebasestorage.app
 ```
 
-**Backend (backend/.env + DigitalOcean):**
+**Backend (backend/.env + DigitalOcean) - COMPLETE LIST:**
 ```env
+# Server Configuration
 PORT=4000
 BACKEND_URL=https://octopus-app-73pgz.ondigitalocean.app
 FRONTEND_URL=https://prism-five-livid.vercel.app
@@ -53,6 +55,35 @@ FIREBASE_PRIVATE_KEY=[full private key with newlines]
 JWT_SECRET=[secret]
 SESSION_SECRET=[secret]
 OAUTH_STATE_SECRET=[secret]
+
+# OAuth Credentials (REQUIRED for social connections)
+TIKTOK_CLIENT_KEY=[tiktok client key]
+TIKTOK_CLIENT_SECRET=[tiktok client secret]
+TIKTOK_CALLBACK_URL=https://octopus-app-73pgz.ondigitalocean.app/api/oauth/tiktok/callback
+
+LINKEDIN_CLIENT_ID=[linkedin client id]
+LINKEDIN_CLIENT_SECRET=[linkedin client secret]
+LINKEDIN_CALLBACK_URL=https://octopus-app-73pgz.ondigitalocean.app/api/oauth/linkedin/callback
+
+FACEBOOK_APP_ID=[facebook app id]
+FACEBOOK_APP_SECRET=[facebook app secret]
+FACEBOOK_CALLBACK_URL=https://octopus-app-73pgz.ondigitalocean.app/api/oauth/facebook/callback
+
+INSTAGRAM_CLIENT_ID=[instagram client id]
+INSTAGRAM_CLIENT_SECRET=[instagram client secret]
+INSTAGRAM_CALLBACK_URL=https://octopus-app-73pgz.ondigitalocean.app/api/oauth/instagram/callback
+
+GOOGLE_CLIENT_ID=[google client id]
+GOOGLE_CLIENT_SECRET=[google client secret]
+GOOGLE_CALLBACK_URL=https://octopus-app-73pgz.ondigitalocean.app/api/oauth/google/callback
+
+TWITTER_API_KEY=[twitter api key]
+TWITTER_API_SECRET=[twitter api secret]
+TWITTER_CALLBACK_URL=https://octopus-app-73pgz.ondigitalocean.app/api/oauth/twitter/callback
+
+YOUTUBE_CLIENT_ID=[youtube client id]
+YOUTUBE_CLIENT_SECRET=[youtube client secret]
+YOUTUBE_CALLBACK_URL=https://octopus-app-73pgz.ondigitalocean.app/api/oauth/youtube/callback
 ```
 
 **Vercel Environment Variables:**
@@ -60,9 +91,10 @@ OAUTH_STATE_SECRET=[secret]
 - All `VITE_*` variables from .env
 
 **DigitalOcean Environment Variables:**
-- All backend .env variables
+- All backend .env variables listed above
 - **CRITICAL:** Must include Firebase credentials for auth to work
 - **CRITICAL:** Must use SUPABASE_SERVICE_KEY not ANON key
+- **CRITICAL:** Must include OAuth credentials for each platform you want to connect
 
 ### API URL Pattern
 
@@ -142,6 +174,53 @@ api.interceptors.request.use(async (config) => {
 });
 ```
 
+## OAuth Integration Pattern
+
+### Setting Up OAuth Platforms
+
+For each social media platform, you must:
+
+1. **Create OAuth App** on the platform's developer portal
+2. **Configure Redirect URIs** to point to your backend:
+   ```
+   https://octopus-app-73pgz.ondigitalocean.app/api/oauth/{platform}/callback
+   ```
+3. **Add credentials to DigitalOcean** environment variables
+4. **Test the OAuth flow** end-to-end
+
+### OAuth Route Pattern
+
+```javascript
+// Initiate OAuth
+router.get('/platform', (req, res) => {
+  const params = new URLSearchParams({
+    client_id: process.env.PLATFORM_CLIENT_ID, // MUST be set!
+    response_type: 'code',
+    redirect_uri: process.env.PLATFORM_CALLBACK_URL,
+    scope: 'required scopes',
+    state: generateRandomState()
+  });
+  res.redirect(`https://platform.com/oauth/authorize?${params.toString()}`);
+});
+
+// Handle callback
+router.get('/platform/callback', async (req, res) => {
+  const { code, state } = req.query;
+  // Exchange code for access token
+  // Store in database
+  // Redirect back to frontend
+});
+```
+
+### Common OAuth Errors
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `client_id=undefined` | OAuth credentials not set in env | Add CLIENT_ID to DigitalOcean |
+| `Cannot GET /api/oauth/platform` | Route doesn't exist | Implement OAuth route in backend |
+| `redirect_uri_mismatch` | Wrong callback URL | Update in platform developer console |
+| `invalid_client` | Wrong credentials | Verify CLIENT_ID and SECRET |
+
 ## Database Patterns
 
 ### Supabase Keys - CRITICAL!
@@ -159,6 +238,23 @@ const supabaseAdmin = createClient(URL, ANON_KEY); // Can't write!
 // ✅ CORRECT - Using service_role key
 const supabaseAdmin = createClient(URL, SERVICE_ROLE_KEY); // Full access
 ```
+
+### Database Setup Process
+
+1. **Open Supabase SQL Editor**
+2. **Copy entire contents of `database_schema.sql`**
+3. **Paste and run in SQL Editor**
+4. **Verify all 10 tables created:**
+   - brands
+   - brand_settings
+   - content
+   - brand_content
+   - social_media_connections
+   - autolist_settings
+   - trending_topics
+   - templates
+   - uploads
+   - oauth_states
 
 ### Row Level Security (RLS)
 
@@ -189,13 +285,6 @@ CREATE POLICY "Service role full access" ON brands
 - Always index `user_id` for user-specific queries
 - Index foreign keys
 - Index commonly filtered columns (status, platform, etc.)
-
-### Complete Table Schema
-
-See `database_schema.sql` for complete schema including:
-- brands, brand_settings, content, brand_content
-- social_media_connections, autolist_settings
-- trending_topics, templates, uploads, oauth_states
 
 ## Error Handling Patterns
 
@@ -304,6 +393,18 @@ console.error('Error response:', error.response?.data);
 2. Use `process.env.BACKEND_URL` in OAuth routes
 3. Never hardcode localhost or production URLs
 
+### Issue: OAuth errors (client_id=undefined, etc.)
+**Causes:**
+- OAuth credentials not configured
+- Wrong environment variable names
+- Credentials not set in DigitalOcean
+
+**Solutions:**
+1. Check the exact error message (client_id, client_key, etc.)
+2. Add the missing OAuth credentials to DigitalOcean
+3. Verify variable names match what the code expects
+4. Restart backend after adding credentials
+
 ### Issue: CORS errors
 **Cause:**
 - Frontend URL not in FRONTEND_URLS
@@ -312,6 +413,38 @@ console.error('Error response:', error.response?.data);
 - Add frontend URL to FRONTEND_URLS in backend
 - Format: comma-separated, no spaces
 - Include all environments (dev, staging, prod)
+
+### Issue: Deployment fails with "package-lock.json out of sync"
+**Cause:**
+- package.json was modified but package-lock.json wasn't updated
+
+**Solution:**
+```bash
+cd backend
+npm install
+cd ..
+git add .
+git commit -m "fix: sync package-lock.json"
+git push origin main
+```
+
+### Issue: "Unsupported engine" errors
+**Cause:**
+- Using Node 18, but dependencies require Node 20+
+
+**Solution:**
+- Update Dockerfile: `FROM node:20-alpine`
+- Update package.json: `"engines": { "node": "20.x" }`
+- Deploy changes
+
+### Issue: Database table not found
+**Error:** `Could not find the table 'public.tablename' in the schema cache`
+
+**Solution:**
+1. Open Supabase SQL Editor
+2. Run complete `database_schema.sql`
+3. Verify table exists in Table Editor
+4. Check Supabase logs for any errors
 
 ## Deployment Workflow
 
@@ -328,6 +461,7 @@ console.error('Error response:', error.response?.data);
    - Click Save → Auto-redeploys
 2. Code changes auto-deploy on git push
 3. Or manually trigger: Actions → Force Rebuild
+4. Check Runtime Logs for errors during deployment
 
 ### Database (Supabase)
 1. Write SQL in `database_schema.sql` or migration file
@@ -335,6 +469,22 @@ console.error('Error response:', error.response?.data);
 3. Go to Supabase → SQL Editor
 4. Paste and Run
 5. Verify in Table Editor
+
+### Deployment Checklist
+
+Before deploying:
+- [ ] Run `npm install` if package.json changed
+- [ ] Verify all environment variables are set in deployment platform
+- [ ] Check Dockerfile uses Node 20+
+- [ ] Test locally first if possible
+- [ ] Commit package-lock.json if updated
+
+After deploying:
+- [ ] Check deployment logs for errors
+- [ ] Verify health endpoint responds
+- [ ] Test critical features (auth, brand creation, OAuth)
+- [ ] Check DigitalOcean Runtime Logs
+- [ ] Test in incognito/private browsing
 
 ## Testing Checklist
 
@@ -355,9 +505,11 @@ Before marking a feature complete:
 
 **OAuth Connections:**
 - [ ] URLs use production backend (no localhost)
+- [ ] OAuth credentials configured for each platform
 - [ ] Redirect to correct OAuth provider
 - [ ] Can complete OAuth flow
 - [ ] Connection stored in database
+- [ ] No "client_id=undefined" errors
 
 **General:**
 - [ ] No console errors
@@ -404,6 +556,8 @@ return ( ... );
 6. **Use HTTPS** - Always in production
 7. **Set CORS properly** - Only allow known origins
 8. **Rotate secrets** - Periodically update keys
+9. **Store OAuth secrets server-side** - Never in frontend
+10. **Validate redirect URIs** - Prevent OAuth hijacking
 
 ## Useful Commands
 
@@ -417,6 +571,7 @@ npm run preview          # Preview production build
 cd backend
 npm start                # Start server
 npm run dev              # Start with nodemon
+npm install              # Update dependencies and package-lock.json
 
 # Database
 # Run in Supabase SQL Editor, not locally
@@ -431,22 +586,12 @@ git push origin main
 
 # Test API directly
 curl https://octopus-app-73pgz.ondigitalocean.app/api/health
+
+# Test OAuth endpoint
+curl -X POST https://octopus-app-73pgz.ondigitalocean.app/api/social/connect \
+  -H "Content-Type: application/json" \
+  -d '{"platform":"tiktok"}'
 ```
-
-## Documentation Files
-
-After debugging session, keep these files:
-- `database_schema.sql` - Complete DB schema
-- `QUICK_REFERENCE.md` - URLs and configs
-- `README.md` - Project overview
-
-Delete temporary debugging files:
-- `FIX_401_ERROR.md`
-- `FIX_400_ERROR_NOW.md`
-- `SOLVE_401_NOW.md`
-- `EMERGENCY_DEPLOY.md`
-- `DO_THIS_NOW.md`
-- etc.
 
 ## Key Learnings from Debugging
 
@@ -457,6 +602,11 @@ Delete temporary debugging files:
 5. **Log everything during debug** - Detailed logs save hours of debugging
 6. **Test in production** - Some issues only appear in deployed environment
 7. **Environment variables are critical** - Must be set in BOTH local and deployment platforms
+8. **OAuth requires credentials** - `client_id=undefined` means credentials not configured
+9. **Node version matters** - Supabase requires Node 20+, not Node 18
+10. **package-lock.json must stay in sync** - Run `npm install` after changing dependencies
+11. **Database tables must exist** - Run `database_schema.sql` before using features
+12. **OAuth callback URLs must match** - Set in both code AND platform developer console
 
 ## Emergency Debugging Process
 
@@ -469,7 +619,9 @@ When something breaks:
    - 401 = Auth issue (Firebase creds, token)
    - 400 = Validation/database issue
    - 403 = Permission issue (RLS)
+   - 404 = Route doesn't exist
    - 500 = Server crash
+   - `client_id=undefined` = OAuth credentials missing
 5. **Add detailed logging** - Console.log everywhere
 6. **Test API directly** - Use curl or browser console
 7. **Verify env vars** - Check all platforms
@@ -484,5 +636,5 @@ When something breaks:
 
 ---
 
-**Last Updated:** After fixing OAuth URLs and completing database schema
-**Status:** Production-ready, all authentication and database issues resolved
+**Last Updated:** After fixing OAuth URLs, completing database schema, and identifying OAuth credential requirements
+**Status:** Production-ready backend, OAuth credentials need to be configured per platform
