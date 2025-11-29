@@ -4,8 +4,20 @@ const { GoogleGenerativeAI } = require('@google/generative-ai')
 const { z } = require('zod')
 
 // Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
-const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+let genAI = null
+let model = null
+
+if (process.env.GOOGLE_API_KEY) {
+  try {
+    genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
+    model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+    console.log('✅ Google Gemini AI initialized for trend generation')
+  } catch (e) {
+    console.error('❌ Failed to initialize Gemini AI for trends:', e.message)
+  }
+} else {
+  console.warn('⚠️ GOOGLE_API_KEY not set - trend generation will use fallback')
+}
 
 // Schema validation for trend data
 const trendSchema = z.object({
@@ -341,87 +353,76 @@ router.post('/research', async (req, res) => {
 
     const prompt = generateBrandAwarePrompt(brand_context, niche, content_type)
     
-    try {
-      const result = await model.generateContent(prompt)
-      const response = await result.response
-      const text = response.text()
-      
-      // Extract JSON from response
-      let trendsData
+    // Try to use Gemini AI if available
+    if (model) {
       try {
-        // Try to extract JSON from the response
-        const jsonMatch = text.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          trendsData = safeJsonParse(jsonMatch[0])
-        } else {
-          trendsData = safeJsonParse(text)
+        const result = await model.generateContent(prompt)
+        const response = await result.response
+        const text = response.text()
+        
+        // Extract JSON from response
+        let trendsData
+        try {
+          // Try to extract JSON from the response
+          const jsonMatch = text.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            trendsData = safeJsonParse(jsonMatch[0])
+          } else {
+            trendsData = safeJsonParse(text)
+          }
+        } catch (parseError) {
+          console.error('JSON parsing error:', parseError)
+          trendsData = null
         }
-      } catch (parseError) {
-        console.error('JSON parsing error:', parseError)
-        trendsData = null
-      }
 
-      // Validate LLM response
-      if (trendsData) {
-        const validationResult = llmTrendSchema.safeParse(trendsData)
-        if (validationResult.success) {
-          // Limit to requested count
-          const limitedTrends = validationResult.data.trends.slice(0, count)
-          
-          // Add brand context to each trend
-          const enhancedTrends = limitedTrends.map(trend => ({
-            ...trend,
-            brand_context: brand_context,
-            is_hidden: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }))
+        // Validate LLM response
+        if (trendsData) {
+          const validationResult = llmTrendSchema.safeParse(trendsData)
+          if (validationResult.success) {
+            // Limit to requested count
+            const limitedTrends = validationResult.data.trends.slice(0, count)
+            
+            // Add brand context to each trend
+            const enhancedTrends = limitedTrends.map(trend => ({
+              ...trend,
+              brand_context: brand_context,
+              is_hidden: false,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }))
 
-          return res.json({
-            success: true,
-            trends: enhancedTrends,
-            source: 'llm',
-            message: 'Trends generated successfully using AI'
-          })
+            return res.json({
+              success: true,
+              trends: enhancedTrends,
+              source: 'llm',
+              message: 'Trends generated successfully using AI'
+            })
+          }
         }
+        
+        // Fallback to manual trends if LLM response is invalid
+        console.log('LLM response invalid, using fallback trends')
+      } catch (llmError) {
+        console.error('LLM generation error:', llmError)
+        // Fall through to fallback
       }
-      
-      // Fallback to manual trends if LLM response is invalid
-      console.log('LLM response invalid, using fallback trends')
-      const fallbackTrends = generateFallbackTrends(brand_context, niche)
-      const enhancedFallbackTrends = fallbackTrends.trends.slice(0, count).map(trend => ({
-        ...trend,
-        is_hidden: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }))
-
-      res.json({
-        success: true,
-        trends: enhancedFallbackTrends,
-        source: 'fallback',
-        message: 'Using fallback trends due to AI response issues'
-      })
-
-    } catch (llmError) {
-      console.error('LLM generation error:', llmError)
-      
-      // Use fallback trends on LLM failure
-      const fallbackTrends = generateFallbackTrends(brand_context, niche)
-      const enhancedFallbackTrends = fallbackTrends.trends.slice(0, count).map(trend => ({
-        ...trend,
-        is_hidden: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }))
-
-      res.json({
-        success: true,
-        trends: enhancedFallbackTrends,
-        source: 'fallback',
-        message: 'Using fallback trends due to AI service issues'
-      })
     }
+    
+    // Use fallback trends if AI failed or is not available
+    const fallbackTrends = generateFallbackTrends(brand_context, niche)
+    const enhancedFallbackTrends = fallbackTrends.trends.slice(0, count).map(trend => ({
+      ...trend,
+      is_hidden: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }))
+
+    res.json({
+      success: true,
+      trends: enhancedFallbackTrends,
+      source: model ? 'fallback' : 'no_ai_configured',
+      message: model ? 'Using fallback trends due to AI response issues' : 'Using fallback trends - AI not configured'
+    })
 
   } catch (e) {
     console.error('Trend research error:', e)

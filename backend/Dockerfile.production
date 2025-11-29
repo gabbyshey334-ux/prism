@@ -1,5 +1,5 @@
 # Multi-stage build for DigitalOcean production deployment
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache python3 make g++
@@ -20,7 +20,7 @@ COPY . .
 RUN npm run build --if-present || echo "No build script found"
 
 # Production stage
-FROM node:18-alpine AS production
+FROM node:20-alpine AS production
 
 # Install production dependencies
 RUN apk add --no-cache \

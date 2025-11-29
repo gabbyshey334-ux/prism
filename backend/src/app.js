@@ -48,5 +48,6 @@ app.use('/api/trending_topics', require('./routes/trending_topics'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/uploads', require('./routes/uploads'));
 app.use('/api/integrations', require('./routes/integrations'));
+app.use('/api/functions', require('./routes/functions'));
 
 module.exports = app;

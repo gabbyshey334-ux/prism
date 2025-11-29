@@ -205,24 +205,47 @@ export const functions = {
   socialMediaConnect: async (platform) => social.connect(platform),
   socialMediaPost: async (platform, content) => social.post(platform, content),
   invoke: async (name, payload = {}) => {
-    switch (name) {
-      case 'socialMediaConnect':
-        return { data: await social.connect(payload.platform) };
-      case 'socialMediaPost':
-        return { data: await social.post(payload.platform, payload.content) };
-      case 'socialMediaRefreshToken':
-        return { data: await api.post('/social/refresh', { platform: payload.platform }) };
-      case 'socialMediaCallback':
-        {
-          const state = payload.state || '';
-          const platMatch = String(state).match(/platform-([a-zA-Z0-9_\-]+)/);
-          const platform = platMatch ? platMatch[1] : 'unknown';
-          return { data: { success: true, platform, account_name: 'dev_account' } };
-        }
-      case 'tiktokVerification':
-      case 'testOAuthCallback':
-      default:
-        return { data: { status: 'stub', name } };
+    try {
+      // Try to call backend function endpoint first
+      try {
+        const res = await api.post(`/functions/invoke/${name}`, payload);
+        return { data: res.data };
+      } catch (backendError) {
+        // If backend endpoint doesn't exist or fails, fall back to local handlers
+        console.warn(`Backend function ${name} not available, using fallback:`, backendError.message);
+      }
+
+      // Fallback to local handlers
+      switch (name) {
+        case 'getCESDKKey':
+          // Try backend first, then fallback
+          try {
+            const res = await api.post('/functions/getCESDKKey');
+            return { data: res.data };
+          } catch {
+            return { data: { apiKey: null, error: 'License key not configured' } };
+          }
+        case 'socialMediaConnect':
+          return { data: await social.connect(payload.platform) };
+        case 'socialMediaPost':
+          return { data: await social.post(payload.platform, payload.content) };
+        case 'socialMediaRefreshToken':
+          return { data: await api.post('/social/refresh', { platform: payload.platform }) };
+        case 'socialMediaCallback':
+          {
+            const state = payload.state || '';
+            const platMatch = String(state).match(/platform-([a-zA-Z0-9_\-]+)/);
+            const platform = platMatch ? platMatch[1] : 'unknown';
+            return { data: { success: true, platform, account_name: 'dev_account' } };
+          }
+        case 'tiktokVerification':
+        case 'testOAuthCallback':
+        default:
+          return { data: { status: 'stub', name } };
+      }
+    } catch (e) {
+      console.error(`Function invoke error for ${name}:`, e);
+      return { data: { error: e.message, status: 'error' } };
     }
   }
 };
@@ -447,12 +470,22 @@ export const integrations = {
         }
       };
     },
-    InvokeLLM: async ({ prompt }) => {
+    InvokeLLM: async ({ prompt, response_json_schema }) => {
       try {
-        const res = await api.post('/integrations/llm', { prompt });
+        const res = await api.post('/integrations/llm', { prompt, response_json_schema });
         return res.data || { trends: [] };
       } catch (e) {
-        return { trends: [] };
+        console.error('InvokeLLM error:', e);
+        return { trends: [], error: e.message };
+      }
+    },
+    GenerateImage: async ({ prompt, width, height }) => {
+      try {
+        const res = await api.post('/integrations/generate-image', { prompt, width, height });
+        return res.data || { url: null, error: 'No image generated' };
+      } catch (e) {
+        console.error('GenerateImage error:', e);
+        return { url: null, error: e.message };
       }
     }
   }

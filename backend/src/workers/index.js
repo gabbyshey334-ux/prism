@@ -1,4 +1,7 @@
 const { startBackgroundScheduler, shutdown } = require('./postWorker');
+const { contentQueue } = require('./contentWorker');
+const { trendQueue } = require('./trendWorker');
+const { postingQueue } = require('./postingWorker');
 const logger = require('./logger');
 
 // Graceful shutdown handling
@@ -29,8 +32,17 @@ async function startWorkers() {
   try {
     logger.info('Starting Prism background workers...');
     
-    // Start the background scheduler
+    // Start the background scheduler for posts
     startBackgroundScheduler();
+    
+    // Content generation queue is automatically started when imported
+    logger.info('Content generation queue initialized');
+    
+    // Trend discovery queue is automatically started when imported
+    logger.info('Trend discovery queue initialized');
+    
+    // Posting queue is automatically started when imported
+    logger.info('Posting queue initialized');
     
     logger.info('Background workers started successfully');
     
@@ -54,7 +66,45 @@ if (require.main === module) {
   startWorkers();
 }
 
+// Graceful shutdown for content queue
+async function shutdownContentQueue() {
+  try {
+    await contentQueue.close();
+    logger.info('Content generation queue closed');
+  } catch (error) {
+    logger.error('Error closing content queue:', error);
+  }
+}
+
+// Graceful shutdown for trend queue
+async function shutdownTrendQueue() {
+  try {
+    await trendQueue.close();
+    logger.info('Trend discovery queue closed');
+  } catch (error) {
+    logger.error('Error closing trend queue:', error);
+  }
+}
+
+// Graceful shutdown for posting queue
+async function shutdownPostingQueue() {
+  try {
+    await postingQueue.close();
+    logger.info('Posting queue closed');
+  } catch (error) {
+    logger.error('Error closing posting queue:', error);
+  }
+}
+
+// Enhanced shutdown
+async function shutdownAll() {
+  await shutdown();
+  await shutdownContentQueue();
+  await shutdownTrendQueue();
+  await shutdownPostingQueue();
+}
+
 module.exports = {
   startWorkers,
-  shutdown
+  shutdown: shutdownAll
 };
