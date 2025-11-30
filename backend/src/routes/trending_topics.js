@@ -7,9 +7,10 @@ const { z } = require('zod')
 let genAI = null
 let model = null
 
-if (process.env.GOOGLE_API_KEY) {
+const GOOGLE_KEY = process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY
+if (GOOGLE_KEY) {
   try {
-    genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
+    genAI = new GoogleGenerativeAI(GOOGLE_KEY)
     model = genAI.getGenerativeModel({ model: 'gemini-pro' })
     console.log('✅ Google Gemini AI initialized for trend generation')
   } catch (e) {

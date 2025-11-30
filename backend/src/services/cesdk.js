@@ -10,10 +10,6 @@ class CESDKService {
     this.apiKey = process.env.CESDK_API_KEY || process.env.CESDK_LICENSE_KEY;
     this.baseURL = process.env.CESDK_API_URL || 'https://api.img.ly';
     this.version = 'v1';
-    
-    if (!this.apiKey) {
-      console.warn('⚠️ CE.SDK API key not configured');
-    }
   }
 
   /**
@@ -560,4 +556,3 @@ class CESDKService {
 }
 
 module.exports = new CESDKService();
-

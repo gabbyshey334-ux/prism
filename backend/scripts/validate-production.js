@@ -35,13 +35,13 @@ const REQUIRED_ENV_VARS = {
   FRONTEND_URL: 'Primary frontend URL',
 };
 
-// Recommended environment variables
-const RECOMMENDED_ENV_VARS = {
-  JWT_SECRET: 'JWT secret (if using JWT auth)',
-  REDIS_PASSWORD: 'Redis password (if Redis is password-protected)',
-  OPENAI_API_KEY: 'OpenAI API key (for AI features)',
-  ANTHROPIC_API_KEY: 'Anthropic API key (for AI features)',
-};
+  // Recommended environment variables
+  const RECOMMENDED_ENV_VARS = {
+    JWT_SECRET: 'JWT secret (if using JWT auth)',
+    REDIS_PASSWORD: 'Redis password (if Redis is password-protected)',
+    OPENAI_API_KEY: 'OpenAI API key (for AI features)',
+    GOOGLE_API_KEY: 'Google Generative AI key (for AI features)'
+  };
 
 function validateEnvironment() {
   const errors = [];
@@ -163,4 +163,3 @@ if (require.main === module) {
 }
 
 module.exports = { validateEnvironment };
-

@@ -50,7 +50,10 @@ const defaultOrigins = [
   'http://localhost:3000',
   'http://localhost:5173'
 ];
-const envOrigins = originsEnv.split(',').map(s => s.trim()).filter(Boolean);
+const envOrigins = originsEnv
+  .split(',')
+  .map(s => s.trim().replace(/^\s*[`'\"]+|[`'\"]+\s*$/g, ''))
+  .filter(Boolean);
 const allowedOrigins = envOrigins.length > 0 ? envOrigins : defaultOrigins;
 
 logger.info('CORS configuration', { allowedOrigins });
@@ -346,4 +349,3 @@ if (require.main === module) {
 }
 
 module.exports = app;
-

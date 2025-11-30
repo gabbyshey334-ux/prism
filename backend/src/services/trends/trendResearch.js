@@ -1,6 +1,5 @@
 const axios = require('axios');
 const openaiService = require('../ai/openai');
-const anthropicService = require('../ai/anthropic');
 const logger = require('../../workers/logger');
 
 /**
@@ -235,11 +234,9 @@ class TrendResearchService {
    */
   async researchTrend({ topic, platform = null }) {
     try {
-      // Use AI to analyze the trend
-      const aiService = openaiService.isAvailable() ? openaiService : anthropicService;
-      
-      if (!aiService.isAvailable()) {
-        throw new Error('No AI service available for trend research');
+      // Use OpenAI to analyze the trend
+      if (!openaiService.isAvailable()) {
+        throw new Error('OpenAI API key not configured');
       }
 
       const researchPrompt = `Research and analyze this trending topic: "${topic}"
@@ -264,7 +261,7 @@ Return as JSON with these fields:
 - viral_factors: Array of factors making it viral
 - trend_duration: Estimated duration (short/medium/long)`;
 
-      const researchData = await aiService.generateJSON({
+      const researchData = await openaiService.generateJSON({
         prompt: researchPrompt,
         schema: {
           type: 'object',
@@ -340,8 +337,7 @@ Return as JSON with these fields:
 
       // AI analysis score (0-25 points)
       try {
-        const aiService = openaiService.isAvailable() ? openaiService : anthropicService;
-        if (aiService.isAvailable()) {
+        if (openaiService.isAvailable()) {
           const analysisPrompt = `Analyze the viral potential of this trend: "${trend.topic}"
 
 Consider:
@@ -354,7 +350,7 @@ Consider:
 
 Return a score from 0-25 representing viral potential.`;
 
-          const analysis = await aiService.generateText({
+          const analysis = await openaiService.generateText({
             prompt: analysisPrompt,
             systemPrompt: 'You are a trend analyst. Return only a number from 0-25.',
             maxTokens: 10,
@@ -465,4 +461,3 @@ Return a score from 0-25 representing viral potential.`;
 }
 
 module.exports = new TrendResearchService();
-

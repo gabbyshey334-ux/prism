@@ -4,9 +4,10 @@ const { GoogleGenerativeAI } = require('@google/generative-ai')
 
 // Initialize Gemini AI for text generation
 let genAIModel = null
-if (process.env.GOOGLE_API_KEY) {
+const GOOGLE_KEY = process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY
+if (GOOGLE_KEY) {
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
+    const genAI = new GoogleGenerativeAI(GOOGLE_KEY)
     genAIModel = genAI.getGenerativeModel({ model: 'gemini-pro' })
     console.log('✅ Google Gemini AI initialized')
   } catch (e) {
@@ -159,7 +160,7 @@ router.post('/generate-image', async (req, res) => {
     }
 
     // Try Google Gemini image generation (Imagen)
-    const googleKey = process.env.GOOGLE_API_KEY
+    const googleKey = GOOGLE_KEY
     if (googleKey) {
       try {
         // Note: Gemini doesn't have direct image generation, but we can use Imagen API

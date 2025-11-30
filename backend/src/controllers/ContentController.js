@@ -1,5 +1,4 @@
 const openaiService = require('../services/ai/openai');
-const anthropicService = require('../services/ai/anthropic');
 const imageGenService = require('../services/ai/imageGen');
 const promptService = require('../services/ai/prompts');
 const ContentModel = require('../models/Content');
@@ -27,7 +26,7 @@ class ContentController {
         tone = 'professional',
         audience = 'general',
         style = 'engaging',
-        provider = 'openai', // 'openai' or 'anthropic'
+        provider = 'openai',
         contentId = null,
         generateVariations = false,
         variationCount = 3
@@ -62,9 +61,7 @@ class ContentController {
 
       // Select AI provider
       let aiService;
-      if (provider === 'anthropic' && anthropicService.isAvailable()) {
-        aiService = anthropicService;
-      } else if (openaiService.isAvailable()) {
+      if (openaiService.isAvailable()) {
         aiService = openaiService;
       } else {
         return res.status(503).json({
@@ -347,9 +344,7 @@ class ContentController {
 
       // Select AI provider
       let aiService;
-      if (provider === 'anthropic' && anthropicService.isAvailable()) {
-        aiService = anthropicService;
-      } else if (openaiService.isAvailable()) {
+      if (openaiService.isAvailable()) {
         aiService = openaiService;
       } else {
         return res.status(503).json({
@@ -538,4 +533,3 @@ class ContentController {
 }
 
 module.exports = ContentController;
-

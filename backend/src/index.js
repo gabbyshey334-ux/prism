@@ -4,6 +4,15 @@ require('dotenv').config();
 const app = require('./server');
 const PORT = process.env.PORT || 4000;
 
-// Server is now configured in server.js
-// Routes are mounted in server.js
-// This file maintains backward compatibility
+if (!app || typeof app.listen !== 'function') {
+  throw new Error('Backend server failed to initialize');
+}
+
+app.listen(PORT, () => {
+  const logger = require('./workers/logger');
+  logger.info('PRISM Backend started', {
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    healthCheck: `http://localhost:${PORT}/health`
+  });
+});
