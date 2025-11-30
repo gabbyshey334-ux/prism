@@ -254,8 +254,23 @@ export const functions = {
 export const entities = {
   Brand: {
     list: async () => {
-      try { const res = await api.get('/brands'); return res.data; }
-      catch (e) { if (DEV_MODE) return DEV_BRANDS; throw e; }
+      try { 
+        const res = await api.get('/brands'); 
+        // Ensure we always return an array
+        const data = res.data;
+        if (!Array.isArray(data)) {
+          console.warn('Brand.list() received non-array response:', data);
+          return [];
+        }
+        console.log('Brand.list() fetched', data.length, 'brands');
+        return data;
+      }
+      catch (e) { 
+        console.error('Brand.list() error:', e.response?.data || e.message);
+        if (DEV_MODE) return DEV_BRANDS; 
+        // Return empty array instead of throwing to prevent query failure
+        return [];
+      }
     },
     create: async (data) => {
       try { const res = await api.post('/brands', data); return res.data; }

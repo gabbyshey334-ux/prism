@@ -32,8 +32,15 @@ export default function Autolist() {
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => prism.entities.Brand.list(),
+    queryFn: async () => {
+      const result = await prism.entities.Brand.list();
+      return Array.isArray(result) ? result : [];
+    },
     initialData: [],
+    refetchOnMount: 'always',
+    staleTime: 0,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const { data: contents = [] } = useQuery({

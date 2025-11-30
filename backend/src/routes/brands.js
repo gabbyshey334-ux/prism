@@ -63,10 +63,18 @@ async function getUserId(req) {
 router.get('/', async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('brands').select('*').order('created_at', { ascending: false })
-    if (error) return res.status(400).json({ error: error.message })
-    res.json(data || [])
+    if (error) {
+      console.error('Brands fetch error:', error);
+      return res.status(400).json({ error: error.message })
+    }
+    // Always return an array, even if data is null or undefined
+    const brands = Array.isArray(data) ? data : [];
+    console.log(`Brands fetched: ${brands.length} brands`);
+    res.json(brands)
   } catch (e) {
-    res.status(500).json({ error: 'brands_list_failed' })
+    console.error('Brands route error:', e);
+    // Return empty array instead of error to prevent frontend issues
+    res.json([])
   }
 })
 

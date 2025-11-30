@@ -177,10 +177,23 @@ export default function BrandsPage() {
   const [selectedBrandForRSS, setSelectedBrandForRSS] = useState(null);
   const [selectedBrandForTerms, setSelectedBrandForTerms] = useState(null);
 
-  const { data: brands = [], isLoading } = useQuery({
+  const { data: brands = [], isLoading, error, refetch } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => prism.entities.Brand.list(),
+    queryFn: async () => {
+      console.log('Fetching brands...');
+      const result = await prism.entities.Brand.list();
+      console.log('Brands fetched:', result);
+      return result;
+    },
     initialData: [],
+    refetchOnMount: 'always',
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    onError: (error) => {
+      console.error('Brands query error:', error);
+    },
   });
 
   const createBrandMutation = useMutation({
@@ -441,6 +454,10 @@ export default function BrandsPage() {
                     style={{ 
                       borderColor: 'rgba(229, 165, 116, 0.4)',
                       background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF8F0 100%)'
+                    }}
+                    onClick={() => {
+                      setSelectedBrand(brand);
+                      setActiveTab('connections');
                     }}
                   >
                     <CardContent className="p-6">

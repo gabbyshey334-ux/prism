@@ -326,9 +326,15 @@ Return 12-15 distinct general trends.`;
 
   const { data: brands = [] } = useQuery({
     queryKey: ['brands'],
-    queryFn: () => prism.entities.Brand.list(),
+    queryFn: async () => {
+      const result = await prism.entities.Brand.list();
+      return Array.isArray(result) ? result : [];
+    },
     initialData: [],
-    enabled: !!user, // Only run query if user is authenticated
+    refetchOnMount: 'always',
+    staleTime: 0,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const createIdeaMutation = useMutation({
