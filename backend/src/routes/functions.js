@@ -93,11 +93,9 @@ router.post('/socialMediaConnect', async (req, res) => {
     }
 
     // Redirect to OAuth endpoint
-    const oauthUrl = `/api/oauth/${platform}`
-    return res.json({
-      redirect_url: oauthUrl,
-      platform: platform
-    })
+    const backendUrl = process.env.BACKEND_URL || process.env.API_URL || ''
+    const authUrl = backendUrl ? `${backendUrl}/api/oauth/${platform}` : `/api/oauth/${platform}`
+    return res.json({ authUrl, platform })
   } catch (e) {
     console.error('socialMediaConnect error:', e)
     return res.status(500).json({
@@ -208,10 +206,11 @@ router.post('/invoke/:name', async (req, res) => {
             message: 'Platform parameter is required'
           })
         }
-        return res.json({
-          redirect_url: `/api/oauth/${platform}`,
-          platform: platform
-        })
+        {
+          const backendUrl = process.env.BACKEND_URL || process.env.API_URL || ''
+          const authUrl = backendUrl ? `${backendUrl}/api/oauth/${platform}` : `/api/oauth/${platform}`
+          return res.json({ authUrl, platform })
+        }
       }
       
       case 'socialMediaPost': {
@@ -258,4 +257,3 @@ router.post('/invoke/:name', async (req, res) => {
 })
 
 module.exports = router
-
