@@ -32,9 +32,13 @@ async function extractAuth(req, res, next) {
       try {
         const decoded = await admin.auth().verifyIdToken(token);
         req.user = decoded; // Adds { uid, email, ... } to request
-        console.log('✅ Auth extracted for user:', decoded.uid);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ Auth extracted for user:', decoded.uid);
+        }
       } catch (verifyError) {
-        console.log('⚠️ Token verification failed:', verifyError.message);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('⚠️ Token verification failed:', verifyError.message);
+        }
       }
     } else {
       // Try to extract from state parameter (for OAuth callbacks)
@@ -43,19 +47,23 @@ async function extractAuth(req, res, next) {
           const stateData = JSON.parse(req.query.state);
           if (stateData.userId) {
             req.user = { uid: stateData.userId };
-            console.log('✅ User ID extracted from state:', stateData.userId);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ User ID extracted from state');
+            }
           }
         } catch {
           // State is not JSON, that's okay
         }
       }
       
-      if (!req.user) {
+      if (!req.user && process.env.NODE_ENV === 'development') {
         console.log('ℹ️ No auth token or user context found');
       }
     }
   } catch (e) {
-    console.log('⚠️ Auth extraction error:', e.message);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('⚠️ Auth extraction error:', e.message);
+    }
     // Don't fail the request, just continue without user
   }
   next();

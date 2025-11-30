@@ -131,29 +131,41 @@ api.interceptors.request.use(async (config) => {
     try {
       const u = firebaseAuth?.currentUser;
       if (u) {
-        console.log('Getting fresh token from Firebase user...');
+        if (DEV_MODE) {
+          console.log('Getting fresh token from Firebase user...');
+        }
         token = await u.getIdToken();
-        console.log('Token obtained:', token ? 'yes' : 'no');
+        if (DEV_MODE) {
+          console.log('Token obtained successfully');
+        }
       } else {
-        console.warn('No Firebase user logged in');
+        if (DEV_MODE) {
+          console.warn('No Firebase user logged in');
+        }
       }
     } catch (error) {
-      console.error('Error getting Firebase token:', error);
+      console.error('Error getting Firebase token:', error.message);
     }
   } else {
-    console.log('Using cached token');
+    if (DEV_MODE) {
+      console.log('Using cached authentication token');
+    }
   }
   
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('Authorization header set for request to:', config.url);
+    if (DEV_MODE) {
+      console.log('Authorization header set for request to:', config.url);
+    }
   } else {
-    console.warn('No token available for request to:', config.url);
+    if (DEV_MODE) {
+      console.warn('No token available for request to:', config.url);
+    }
   }
   
   return config;
 }, (error) => {
-  console.error('Request interceptor error:', error);
+  console.error('Request interceptor error:', error.message);
   return Promise.reject(error);
 });
 
@@ -162,8 +174,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.error('Authentication failed (401):', error.response.data);
-      console.error('Please check: 1) You are logged in, 2) Token is valid, 3) Backend can verify token');
+      if (DEV_MODE) {
+        console.error('Authentication failed (401)');
+        console.error('Please check: 1) You are logged in, 2) Token is valid, 3) Backend can verify token');
+      } else {
+        // In production, only log the error type, not sensitive data
+        console.error('Authentication failed (401)');
+      }
     }
     return Promise.reject(error);
   }
@@ -330,8 +347,30 @@ export const entities = {
       catch (e) { if (DEV_MODE && BYPASS_AUTH) return { id, ...data }; throw e; }
     },
     create: async (data) => {
-      try { const res = await api.post('/content', data); return res.data; }
-      catch (e) { if (DEV_MODE && BYPASS_AUTH) return { ...data, id: 'dev-content' }; throw e; }
+      try { 
+        console.log('Creating content with data:', {
+          hasTitle: !!data.ai_generated_title,
+          hasOriginalInput: !!data.original_input,
+          status: data.status,
+          keys: Object.keys(data)
+        });
+        const res = await api.post('/content', data); 
+        console.log('Content created successfully:', res.data?.id);
+        return res.data; 
+      }
+      catch (e) { 
+        console.error('Content creation error:', {
+          status: e.response?.status,
+          error: e.response?.data || e.message,
+          requestData: {
+            hasTitle: !!data.ai_generated_title,
+            hasOriginalInput: !!data.original_input,
+            status: data.status
+          }
+        });
+        if (DEV_MODE && BYPASS_AUTH) return { ...data, id: 'dev-content' }; 
+        throw e; 
+      }
     },
     delete: async (id) => {
       try { const res = await api.delete(`/content/${id}`); return res.data; }
@@ -488,10 +527,15 @@ export const integrations = {
     InvokeLLM: async ({ prompt, response_json_schema }) => {
       try {
         const res = await api.post('/integrations/llm', { prompt, response_json_schema });
-        return res.data || { trends: [] };
+        console.log('LLM API response:', res.status, res.data ? 'Data received' : 'No data');
+        if (!res.data) {
+          console.warn('LLM API returned empty response');
+          return { error: 'Empty response from LLM API' };
+        }
+        return res.data;
       } catch (e) {
-        console.error('InvokeLLM error:', e);
-        return { trends: [], error: e.message };
+        console.error('InvokeLLM error:', e.response?.data || e.message);
+        throw e; // Re-throw to let caller handle the error
       }
     },
     GenerateImage: async ({ prompt, width, height }) => {
@@ -506,10 +550,13 @@ export const integrations = {
   }
 };
 
+export { api };
+
 export default {
   auth,
   integrations,
   social,
   functions,
-  entities
+  entities,
+  api
 };

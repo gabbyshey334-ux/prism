@@ -198,11 +198,97 @@ router.patch('/:id/status', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { data, error } = await supabaseAdmin.from('content').insert(req.body).select('*').single()
-    if (error) return res.status(400).json({ error: error.message })
-    res.json(data)
+    // Extract user ID from authenticated user
+    const userId = req.user?.uid;
+    if (!userId) {
+      return res.status(401).json({ 
+        error: 'authentication_required',
+        message: 'User authentication required' 
+      });
+    }
+
+    // Log the request for debugging
+    console.log('Content creation request:', {
+      userId,
+      bodyKeys: Object.keys(req.body),
+      hasOriginalInput: !!req.body.original_input,
+      hasTitle: !!req.body.ai_generated_title
+    });
+
+    // Map frontend fields to database schema
+    const contentData = {
+      user_id: userId,
+      // Map frontend fields to database fields
+      title: req.body.ai_generated_title || req.body.title || req.body.original_input?.substring(0, 100) || 'Untitled',
+      description: req.body.description || req.body.original_input?.substring(0, 500) || null,
+      content_type: req.body.content_type || req.body.input_type || null,
+      status: req.body.status || 'draft',
+      platform: req.body.platform || null,
+      brand_id: req.body.brand_id || req.body.preselected_brand || null,
+      // Store additional frontend-specific fields in metadata
+      metadata: {
+        ...(req.body.metadata || {}),
+        original_input: req.body.original_input || null,
+        input_type: req.body.input_type || null,
+        ai_generated_category: req.body.ai_generated_category || null,
+        research_data: req.body.research_data || null,
+        viral_score: req.body.viral_score || null,
+        brand_content: req.body.brand_content || null,
+        preselected_brand: req.body.preselected_brand || null,
+        brainstorm_history: req.body.brainstorm_history || null,
+        additional_context: req.body.additional_context || null,
+        instructions: req.body.instructions || null,
+        selected_formats: req.body.selected_formats || null,
+        format_templates: req.body.format_templates || null,
+        format_options: req.body.format_options || null,
+        generated_text: req.body.generated_text || null,
+        visual_setup: req.body.visual_setup || null,
+        generated_visuals: req.body.generated_visuals || null,
+        editor_scenes: req.body.editor_scenes || null,
+        workflow_step: req.body.workflow_step || null,
+        uploaded_image_urls: req.body.uploaded_image_urls || null
+      },
+      text_content: req.body.text_content || null,
+      media_urls: req.body.media_urls || req.body.uploaded_image_urls || null,
+      source: req.body.source || null,
+      scheduled_for: req.body.scheduled_for || null
+    };
+
+    // Validate required fields
+    if (!contentData.title || contentData.title.trim() === '') {
+      return res.status(400).json({ 
+        error: 'validation_failed',
+        message: 'Title is required. Provide ai_generated_title, title, or original_input.',
+        received: {
+          ai_generated_title: req.body.ai_generated_title,
+          title: req.body.title,
+          original_input: req.body.original_input ? 'present' : 'missing'
+        }
+      });
+    }
+
+    // Use ContentModel.create for proper validation and error handling
+    try {
+      const createdContent = await ContentModel.create(contentData);
+      
+      res.setHeader('Content-Type', 'application/json');
+      res.status(201).json(createdContent);
+    } catch (modelError) {
+      console.error('ContentModel.create error:', modelError);
+      return res.status(400).json({ 
+        error: 'content_creation_failed',
+        message: modelError.message || 'Failed to create content',
+        details: process.env.NODE_ENV === 'development' ? modelError.stack : undefined
+      });
+    }
   } catch (e) {
-    res.status(500).json({ error: 'content_create_failed' })
+    console.error('Content creation error:', e);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ 
+      error: 'content_create_failed',
+      message: e.message || 'An unexpected error occurred',
+      details: process.env.NODE_ENV === 'development' ? e.stack : undefined
+    });
   }
 })
 

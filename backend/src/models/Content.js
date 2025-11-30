@@ -30,6 +30,9 @@ class ContentModel {
       throw new Error('user_id is required');
     }
 
+    // Ensure metadata is a valid object (not null/undefined)
+    const safeMetadata = metadata && typeof metadata === 'object' ? metadata : {};
+
     const { data, error } = await supabaseAdmin
       .from('content')
       .insert({
@@ -41,10 +44,10 @@ class ContentModel {
         status,
         source: source || null,
         text_content: text_content || null,
-        media_urls: media_urls.length > 0 ? media_urls : null,
+        media_urls: Array.isArray(media_urls) && media_urls.length > 0 ? media_urls : null,
         scheduled_for: scheduled_for || null,
         platform: platform || null,
-        metadata: metadata
+        metadata: safeMetadata
       })
       .select()
       .single();

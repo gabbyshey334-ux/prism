@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const PostingController = require('../controllers/PostingController');
 const PostModel = require('../models/Post');
+const ContentModel = require('../models/Content');
 const { getQueueStatus, cancelPost, getPostJobStatus } = require('../workers/postingWorker');
 const { extractAuth } = require('../middleware/extractAuth');
 
@@ -36,12 +37,6 @@ router.get('/:postId/status', PostingController.getPostStatus);
  * Update post
  */
 router.put('/:postId', PostingController.updatePost);
-
-/**
- * DELETE /api/posts/:postId
- * Delete post
- */
-router.delete('/:postId', PostingController.deletePost);
 
 /**
  * GET /api/posts
@@ -91,6 +86,7 @@ router.get('/', async (req, res) => {
       }
     }
 
+    res.setHeader('Content-Type', 'application/json');
     res.json({
       success: true,
       posts: filteredPosts,
@@ -107,9 +103,12 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Error fetching posts:', error);
+    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({
       error: 'fetch_posts_failed',
-      message: error.message
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -128,12 +127,15 @@ router.get('/scheduled', async (req, res) => {
       limit: parseInt(limit)
     });
 
+    res.setHeader('Content-Type', 'application/json');
     res.json({
       success: true,
       posts,
       count: posts.length
     });
   } catch (error) {
+    console.error('Error fetching scheduled posts:', error);
+    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({
       error: 'fetch_scheduled_failed',
       message: error.message
@@ -151,6 +153,7 @@ router.get('/calendar', async (req, res) => {
     const { start_date, end_date } = req.query;
 
     if (!start_date || !end_date) {
+      res.setHeader('Content-Type', 'application/json');
       return res.status(400).json({
         error: 'dates_required',
         message: 'start_date and end_date are required'
@@ -159,6 +162,7 @@ router.get('/calendar', async (req, res) => {
 
     const posts = await PostModel.getCalendarPosts(start_date, end_date, userId);
 
+    res.setHeader('Content-Type', 'application/json');
     res.json({
       success: true,
       posts,
@@ -167,6 +171,8 @@ router.get('/calendar', async (req, res) => {
       end_date
     });
   } catch (error) {
+    console.error('Error fetching calendar posts:', error);
+    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({
       error: 'calendar_fetch_failed',
       message: error.message
@@ -181,11 +187,14 @@ router.get('/calendar', async (req, res) => {
 router.get('/queue/status', async (req, res) => {
   try {
     const status = await getQueueStatus();
+    res.setHeader('Content-Type', 'application/json');
     res.json({
       success: true,
       queue: status
     });
   } catch (error) {
+    console.error('Error fetching queue status:', error);
+    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({
       error: 'queue_status_failed',
       message: error.message
@@ -201,8 +210,11 @@ router.get('/jobs/:jobId', async (req, res) => {
   try {
     const { jobId } = req.params;
     const status = await getPostJobStatus(jobId);
+    res.setHeader('Content-Type', 'application/json');
     res.json(status);
   } catch (error) {
+    console.error('Error fetching job status:', error);
+    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({
       error: 'job_status_failed',
       message: error.message
@@ -219,6 +231,7 @@ router.delete('/jobs/:jobId', async (req, res) => {
     const { jobId } = req.params;
     const success = await cancelPost(jobId);
     
+    res.setHeader('Content-Type', 'application/json');
     if (success) {
       res.json({
         success: true,
@@ -231,6 +244,8 @@ router.delete('/jobs/:jobId', async (req, res) => {
       });
     }
   } catch (error) {
+    console.error('Error cancelling job:', error);
+    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({
       error: 'cancel_job_failed',
       message: error.message

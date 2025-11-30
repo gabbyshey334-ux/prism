@@ -765,15 +765,23 @@ function UploadModal({ onClose, onUpload, brands, selectedBrand, uploadingFiles,
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl" style={{
-        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-        backdropFilter: 'blur(20px)',
-        border: '2px solid rgba(229, 165, 116, 0.3)'
-      }}>
+      <DialogContent 
+        className="max-w-2xl" 
+        style={{
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+          backdropFilter: 'blur(20px)',
+          border: '2px solid rgba(229, 165, 116, 0.3)'
+        }}
+        aria-labelledby="upload-files-title"
+        aria-describedby="upload-files-description"
+      >
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold" style={{ color: '#3D3D2B' }}>
+          <DialogTitle id="upload-files-title" className="text-2xl font-bold" style={{ color: '#3D3D2B' }}>
             Upload Files
           </DialogTitle>
+          <div id="upload-files-description" className="sr-only">
+            Upload files to your media library. Supported formats include images, videos, PDFs, and documents.
+          </div>
         </DialogHeader>
 
         <div className="space-y-6 mt-6">
@@ -937,16 +945,24 @@ function FileViewerModal({ file, onClose }) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[95vh]" style={{
-        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-        backdropFilter: 'blur(20px)',
-        border: '2px solid rgba(229, 165, 116, 0.3)'
-      }}>
+      <DialogContent 
+        className="max-w-5xl max-h-[95vh]" 
+        style={{
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+          backdropFilter: 'blur(20px)',
+          border: '2px solid rgba(229, 165, 116, 0.3)'
+        }}
+        aria-labelledby="file-details-title"
+        aria-describedby="file-details-description"
+      >
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-bold" style={{ color: '#3D3D2B' }}>
+            <DialogTitle id="file-details-title" className="text-xl font-bold" style={{ color: '#3D3D2B' }}>
               {file.ai_generated_title || file.original_input}
             </DialogTitle>
+            <div id="file-details-description" className="sr-only">
+              View and manage file details, metadata, and options for this uploaded file.
+            </div>
             <Button
               variant="ghost"
               size="icon"

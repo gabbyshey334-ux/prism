@@ -851,14 +851,18 @@ export default function Library() {
 
         {/* Duplicate Confirmation Dialog */}
         <Dialog open={showDuplicateConfirmDialog} onOpenChange={setShowDuplicateConfirmDialog}>
-          <DialogContent style={{
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(229, 165, 116, 0.3)'
-          }}>
+          <DialogContent 
+            style={{
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(229, 165, 116, 0.3)'
+            }}
+            aria-labelledby="duplicate-content-title"
+            aria-describedby="duplicate-content-description"
+          >
             <DialogHeader>
-              <DialogTitle>Duplicate Content</DialogTitle>
-              <DialogDescription>
+              <DialogTitle id="duplicate-content-title">Duplicate Content</DialogTitle>
+              <DialogDescription id="duplicate-content-description">
                 Are you sure you want to duplicate "{contentToDuplicate?.ai_generated_title || contentToDuplicate?.original_input || "Untitled Content"}"? A new draft will be created.
               </DialogDescription>
             </DialogHeader>
@@ -938,13 +942,21 @@ function UploadContentModal({ onClose, brands }) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl" style={{
-        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(229, 165, 116, 0.3)'
-      }}>
+      <DialogContent 
+        className="max-w-2xl" 
+        style={{
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(229, 165, 116, 0.3)'
+        }}
+        aria-labelledby="upload-content-title"
+        aria-describedby="upload-content-description"
+      >
         <DialogHeader>
-          <DialogTitle style={{ color: 'var(--text)' }}>Upload Content</DialogTitle>
+          <DialogTitle id="upload-content-title" style={{ color: 'var(--text)' }}>Upload Content</DialogTitle>
+          <div id="upload-content-description" className="sr-only">
+            Upload a file and add it to your content library. Provide a title and optional description for the uploaded content.
+          </div>
         </DialogHeader>
         <div className="space-y-4 mt-4">
           <div>

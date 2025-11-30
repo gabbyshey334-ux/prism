@@ -79,6 +79,12 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Ensure all API routes return JSON
+app.use('/api', (req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  next();
+});
+
 // Validate required environment variables in production
 if (process.env.NODE_ENV === 'production') {
   const requiredEnvVars = [
@@ -323,17 +329,29 @@ app.use((err, req, res, next) => {
     method: req.method
   });
 
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
+  // Ensure JSON response for API routes
+  if (req.originalUrl.startsWith('/api')) {
+    res.setHeader('Content-Type', 'application/json');
+    res.status(err.status || 500).json({
+      error: err.message || 'Internal server error',
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    });
+  } else {
+    // For non-API routes, use default error handling
+    res.status(err.status || 500).json({
+      error: err.message || 'Internal server error',
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    });
+  }
 });
 
-// 404 handler
+// 404 handler - always return JSON for API routes
 app.use((req, res) => {
+  res.setHeader('Content-Type', 'application/json');
   res.status(404).json({
     error: 'Not found',
-    path: req.originalUrl
+    path: req.originalUrl,
+    method: req.method
   });
 });
 

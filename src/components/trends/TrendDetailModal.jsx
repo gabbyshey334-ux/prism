@@ -44,15 +44,23 @@ export default function TrendDetailModal({ trend, onClose, onCreateContent, onSa
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl p-6" style={{
-        backgroundColor: 'white',
-        border: '2px solid rgba(125, 90, 74, 0.2)',
-        boxShadow: '0 20px 50px rgba(125, 90, 74, 0.15)'
-      }}>
+      <DialogContent 
+        className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl p-6" 
+        style={{
+          backgroundColor: 'white',
+          border: '2px solid rgba(125, 90, 74, 0.2)',
+          boxShadow: '0 20px 50px rgba(125, 90, 74, 0.15)'
+        }}
+        aria-labelledby="trend-detail-title"
+        aria-describedby="trend-detail-description"
+      >
         <DialogHeader>
-          <DialogTitle className="text-3xl font-bold pr-8 leading-tight" style={{ color: '#2D2416' }}>
+          <DialogTitle id="trend-detail-title" className="text-3xl font-bold pr-8 leading-tight" style={{ color: '#2D2416' }}>
             {trend.title}
           </DialogTitle>
+          <div id="trend-detail-description" className="sr-only">
+            Detailed information about this trending topic. View description, research data, and options to save as content idea or create content.
+          </div>
         </DialogHeader>
 
         <div className="space-y-6 mt-6">

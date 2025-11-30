@@ -71,26 +71,137 @@ const navigationItems = [
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const [userInfo, setUserInfo] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
-    const load = async () => {
+    let retryTimeout = null;
+    
+    // Function to load user info from all possible sources
+    const loadUserInfo = async (retryCount = 0) => {
+      if (!mounted) return;
+      
       try {
-        const u = await prism.auth.getCurrentUser();
-        if (mounted && u) setUserInfo({ name: u.name || u.displayName, email: u.email });
-      } catch {}
-      const fu = firebaseAuth.currentUser;
-      if (mounted && fu) setUserInfo({ name: fu.displayName, email: fu.email });
+        setIsLoading(true);
+        
+        // Check if there's a token in localStorage
+        const token = localStorage.getItem('auth_token');
+        const hasToken = !!token;
+        
+        // Try to get user from API (token-based auth)
+        let apiUser = null;
+        if (hasToken) {
+          try {
+            apiUser = await prism.auth.getCurrentUser();
+          } catch (error) {
+            // Token might be invalid, clear it
+            if (error.response?.status === 401 || error.response?.status === 403) {
+              if (mounted) {
+                localStorage.removeItem('auth_token');
+              }
+            }
+          }
+        }
+        
+        // Check Firebase auth
+        const firebaseUser = firebaseAuth.currentUser;
+        
+        // Prioritize API user (from token), then Firebase user
+        if (apiUser && mounted) {
+          setUserInfo({ 
+            name: apiUser.name || apiUser.full_name || apiUser.displayName, 
+            email: apiUser.email 
+          });
+          setIsLoading(false);
+        } else if (firebaseUser && mounted) {
+          setUserInfo({ 
+            name: firebaseUser.displayName, 
+            email: firebaseUser.email 
+          });
+          setIsLoading(false);
+        } else if (hasToken && retryCount < 2 && mounted) {
+          // Token exists but user fetch failed - might be loading, retry once
+          retryTimeout = setTimeout(() => {
+            if (mounted) loadUserInfo(retryCount + 1);
+          }, 1000);
+        } else if (mounted) {
+          // No token and no Firebase user
+          setUserInfo(null);
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Error loading user info:', error);
+        if (mounted) {
+          setUserInfo(null);
+          setIsLoading(false);
+        }
+      }
     };
-    load();
-    const unsub = firebaseAuth.onAuthStateChanged?.((u) => {
-      if (u) setUserInfo({ name: u.displayName, email: u.email });
+    
+    // Initial load
+    loadUserInfo();
+    
+    // Listen to Firebase auth state changes
+    const unsubFirebase = firebaseAuth.onAuthStateChanged?.((u) => {
+      if (!mounted) return;
+      if (u) {
+        // Firebase user logged in
+        setUserInfo({ name: u.displayName, email: u.email });
+        setIsLoading(false);
+        // Also store token if available
+        u.getIdToken().then(token => {
+          if (mounted && token) {
+            localStorage.setItem('auth_token', token);
+            // Reload user info to get full user data from API
+            loadUserInfo();
+          }
+        });
+      } else {
+        // Firebase user logged out - check if we still have token-based auth
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          // Still have token, try to get user from API
+          loadUserInfo();
+        } else {
+          // No token either, user is logged out
+          setUserInfo(null);
+          setIsLoading(false);
+        }
+      }
     });
+    
+    // Listen to localStorage changes (for token updates from other tabs)
+    const handleStorageChange = (e) => {
+      if (!mounted) return;
+      if (e.key === 'auth_token') {
+        // Token was added or removed
+        loadUserInfo();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also poll for token changes (in case storage event doesn't fire for same-window changes)
+    // Use a ref to track last token value to avoid unnecessary reloads
+    let lastToken = localStorage.getItem('auth_token');
+    const tokenCheckInterval = setInterval(() => {
+      if (!mounted) return;
+      const currentToken = localStorage.getItem('auth_token');
+      
+      // Only reload if token state actually changed
+      if (currentToken !== lastToken) {
+        lastToken = currentToken;
+        loadUserInfo();
+      }
+    }, 3000); // Check every 3 seconds
+    
     return () => {
       mounted = false;
-      if (typeof unsub === 'function') unsub();
+      if (typeof unsubFirebase === 'function') unsubFirebase();
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(tokenCheckInterval);
+      if (retryTimeout) clearTimeout(retryTimeout);
     };
-  }, []);
+  }, []); // Empty dependency array - only run on mount/unmount
 
   const hideShell = location.pathname === '/' || location.pathname.toLowerCase() === '/home' || location.pathname.toLowerCase() === '/login';
 
@@ -345,8 +456,12 @@ export default function Layout({ children, currentPageName }) {
                   <p className="font-semibold text-sm truncate" style={{ 
                     color: 'var(--primary-dark)', 
                     textShadow: '0 1px 2px rgba(255, 255, 255, 0.3)'
-                  }}>{userInfo?.name || userInfo?.email || 'Signed Out'}</p>
-                  <p className="text-xs truncate" style={{ color: 'var(--primary)' }}>{userInfo ? 'Signed In' : 'Guest'}</p>
+                  }}>
+                    {isLoading ? 'Loading...' : (userInfo?.name || userInfo?.email || 'Signed Out')}
+                  </p>
+                  <p className="text-xs truncate" style={{ color: 'var(--primary)' }}>
+                    {isLoading ? 'Checking...' : (userInfo ? 'Signed In' : 'Guest')}
+                  </p>
                 </div>
               </div>
             </SidebarFooter>

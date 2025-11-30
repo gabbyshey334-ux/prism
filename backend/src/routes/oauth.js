@@ -46,7 +46,9 @@ router.get('/tiktok/callback', async (req, res) => {
       userId = stateData.userId || userId
     } catch {}
     
-    console.log('🎵 TikTok: Exchanging code for token...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🎵 TikTok: Exchanging code for token...');
+    }
     
     // Exchange code for token
     const { data: tokenData } = await axios.post('https://open.tiktokapis.com/v2/oauth/token/', {
@@ -62,7 +64,9 @@ router.get('/tiktok/callback', async (req, res) => {
     })
 
     const { access_token, refresh_token, expires_in, open_id } = tokenData
-    console.log('✅ TikTok token received, open_id:', open_id);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ TikTok token received');
+    }
 
     // Fetch user profile
     let profile = null
@@ -89,9 +93,13 @@ router.get('/tiktok/callback', async (req, res) => {
       : null
 
     console.log('💾 Saving TikTok connection to database...');
-    console.log('   user_id:', userId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('   user_id:', userId);
+    }
     console.log('   platform_username:', platformUsername);
-    console.log('   platform_user_id:', platformUserId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('   platform_user_id:', platformUserId);
+    }
 
     // Save to social_media_connections
     const { data: connection, error } = await supabaseAdmin
@@ -165,7 +173,9 @@ router.get('/linkedin/callback', async (req, res) => {
       userId = stateData.userId || userId
     } catch {}
     
-    console.log('💼 LinkedIn: Exchanging code for token...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('💼 LinkedIn: Exchanging code for token...');
+    }
     
     // Exchange code for token
     const params = new URLSearchParams({
@@ -179,7 +189,9 @@ router.get('/linkedin/callback', async (req, res) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
     const { access_token, expires_in } = tokenRes.data
-    console.log('✅ LinkedIn token received');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ LinkedIn token received');
+    }
 
     // Fetch user profile
     let profile = null
@@ -205,9 +217,13 @@ router.get('/linkedin/callback', async (req, res) => {
       : null
 
     console.log('💾 Saving LinkedIn connection to database...');
-    console.log('   user_id:', userId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('   user_id:', userId);
+    }
     console.log('   platform_username:', platformUsername);
-    console.log('   platform_user_id:', platformUserId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('   platform_user_id:', platformUserId);
+    }
 
     // Save to social_media_connections
     const { data: connection, error } = await supabaseAdmin
@@ -331,7 +347,9 @@ router.get('/facebook/callback', async (req, res) => {
       userId = stateData.userId || userId
     } catch {}
     
-    console.log('📘 Facebook: Exchanging code for token...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📘 Facebook: Exchanging code for token...');
+    }
 
     const tokenUrl = 'https://graph.facebook.com/v18.0/oauth/access_token'
     const params = new URLSearchParams({
@@ -342,7 +360,9 @@ router.get('/facebook/callback', async (req, res) => {
     })
     const tokenRes = await axios.get(`${tokenUrl}?${params.toString()}`)
     const { access_token, expires_in } = tokenRes.data || {}
-    console.log('✅ Facebook token received');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Facebook token received');
+    }
 
     // Fetch user profile
     let profile = null
@@ -369,9 +389,13 @@ router.get('/facebook/callback', async (req, res) => {
       : null
 
     console.log('💾 Saving Facebook connection to database...');
-    console.log('   user_id:', userId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('   user_id:', userId);
+    }
     console.log('   platform_username:', platformUsername);
-    console.log('   platform_user_id:', platformUserId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('   platform_user_id:', platformUserId);
+    }
 
     // Save to social_media_connections
     const { data: connection, error } = await supabaseAdmin
@@ -445,7 +469,9 @@ router.get('/instagram/callback', async (req, res) => {
       userId = stateData.userId || userId
     } catch {}
     
-    console.log('📷 Instagram: Exchanging code for token...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📷 Instagram: Exchanging code for token...');
+    }
 
     // Exchange code for short-lived token
     const params = new URLSearchParams({
@@ -460,7 +486,9 @@ router.get('/instagram/callback', async (req, res) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
     const { access_token, user_id } = tokenRes.data || {}
-    console.log('✅ Instagram token received, user_id:', user_id);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Instagram token received');
+    }
 
     // Fetch user profile
     let profile = null
@@ -499,9 +527,13 @@ router.get('/instagram/callback', async (req, res) => {
     const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) // 60 days
 
     console.log('💾 Saving Instagram connection to database...');
-    console.log('   user_id:', userId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('   user_id:', userId);
+    }
     console.log('   platform_username:', platformUsername);
-    console.log('   platform_user_id:', user_id);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('   platform_user_id:', user_id);
+    }
 
     // Save to social_media_connections
     const { data: connection, error } = await supabaseAdmin

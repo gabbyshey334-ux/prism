@@ -500,16 +500,21 @@ export default function TemplatesPage() {
 
       {/* Format Selection Modal */}
       <Dialog open={showFormatSelection} onOpenChange={setShowFormatSelection}>
-        <DialogContent className="max-w-3xl" style={{
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '2px solid rgba(229, 165, 116, 0.3)'
-        }}>
+        <DialogContent 
+          className="max-w-3xl" 
+          style={{
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+            backdropFilter: 'blur(20px)',
+            border: '2px solid rgba(229, 165, 116, 0.3)'
+          }}
+          aria-labelledby="template-format-title"
+          aria-describedby="template-format-description"
+        >
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold" style={{ color: '#3D3D2B' }}>
+            <DialogTitle id="template-format-title" className="text-2xl font-bold" style={{ color: '#3D3D2B' }}>
               Choose Template Format
             </DialogTitle>
-            <DialogDescription className="text-sm" style={{ color: '#8B7355' }}>
+            <DialogDescription id="template-format-description" className="text-sm" style={{ color: '#8B7355' }}>
               Select the format and dimensions for your template
             </DialogDescription>
           </DialogHeader>
@@ -606,16 +611,21 @@ export default function TemplatesPage() {
 
       {/* Template Details Modal */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="max-w-2xl" style={{
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '2px solid rgba(229, 165, 116, 0.3)'
-        }}>
+        <DialogContent 
+          className="max-w-2xl" 
+          style={{
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+            backdropFilter: 'blur(20px)',
+            border: '2px solid rgba(229, 165, 116, 0.3)'
+          }}
+          aria-labelledby="template-details-title"
+          aria-describedby="template-details-description"
+        >
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold" style={{ color: '#3D3D2B' }}>
+            <DialogTitle id="template-details-title" className="text-2xl font-bold" style={{ color: '#3D3D2B' }}>
               Template Details
             </DialogTitle>
-            <DialogDescription className="text-sm" style={{ color: '#8B7355' }}>
+            <DialogDescription id="template-details-description" className="text-sm" style={{ color: '#8B7355' }}>
               Add information about your template
             </DialogDescription>
           </DialogHeader>
@@ -690,9 +700,16 @@ export default function TemplatesPage() {
           setShowPlaceholderEditor(false);
           setEditingTemplate(null); // Clear editingTemplate when placeholder editor closes
         }}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent 
+            className="max-w-4xl max-h-[90vh] overflow-y-auto"
+            aria-labelledby="template-placeholders-title"
+            aria-describedby="template-placeholders-description"
+          >
             <DialogHeader>
-              <DialogTitle>Define Template Placeholders</DialogTitle>
+              <DialogTitle id="template-placeholders-title">Define Template Placeholders</DialogTitle>
+              <div id="template-placeholders-description" className="sr-only">
+                Define placeholders for your template. Placeholders are dynamic content areas that will be filled in when using the template.
+              </div>
             </DialogHeader>
             <TemplatePlaceholderEditor
               template={editingTemplate}

@@ -5,10 +5,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, Clock, CheckCircle, XCircle, Trash2, Plus } from "lucide-react"; // Added Plus icon
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar as CalendarIcon, Clock, CheckCircle, XCircle, Trash2, Plus, X, Loader2 } from "lucide-react";
 import { format, parseISO, isFuture, isPast } from "date-fns";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { toast } from "sonner";
+import { api } from "@/api/apiClient";
 
 const platformIcons = {
   tiktok: "🎵",
@@ -22,8 +27,19 @@ const platformIcons = {
 export default function Schedule() {
   const queryClient = useQueryClient();
   const [filterStatus, setFilterStatus] = useState("all");
-  const [selectedBrand, setSelectedBrand] = useState("all"); // New state for brand filter
-  const [isAddingPost, setIsAddingPost] = useState(false); // New state for adding post popup
+  const [selectedBrand, setSelectedBrand] = useState("all");
+  const [isAddingPost, setIsAddingPost] = useState(false);
+  
+  // Form state for scheduling post
+  const [scheduleForm, setScheduleForm] = useState({
+    content_id: '',
+    brand_id: '',
+    platform: '',
+    caption: '',
+    scheduled_date: '',
+    scheduled_time: '',
+    media_urls: []
+  });
 
   const { data: contents = [] } = useQuery({
     queryKey: ['contents'],
@@ -49,6 +65,41 @@ export default function Schedule() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contents'] });
     },
+  });
+
+  // Mutation for creating scheduled post
+  const schedulePostMutation = useMutation({
+    mutationFn: async (postData) => {
+      const scheduledDateTime = new Date(`${postData.scheduled_date}T${postData.scheduled_time}`);
+      const response = await api.post('/social/posts', {
+        platform: postData.platform,
+        brand_id: postData.brand_id,
+        content_id: postData.content_id,
+        caption: postData.caption || '',
+        scheduled_at: scheduledDateTime.toISOString(),
+        media_urls: postData.media_urls || []
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Post scheduled successfully!');
+      setIsAddingPost(false);
+      setScheduleForm({
+        content_id: '',
+        brand_id: '',
+        platform: '',
+        caption: '',
+        scheduled_date: '',
+        scheduled_time: '',
+        media_urls: []
+      });
+      queryClient.invalidateQueries({ queryKey: ['contents'] });
+      // Also invalidate posts query if it exists
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to schedule post. Please try again.');
+    }
   });
 
   // Collect all scheduled posts across all content
@@ -305,19 +356,189 @@ export default function Schedule() {
         )}
       </div>
 
-      {/* Placeholder for the popup/modal for adding a new post */}
+      {/* Schedule Post Modal */}
       {isAddingPost && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="p-8 rounded-2xl max-w-2xl w-full" style={{ backgroundColor: 'var(--card)' }}>
-            <CardHeader className="p-0 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="p-6 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--card)' }}>
+            <CardHeader className="p-0 mb-6">
+              <div className="flex items-center justify-between">
               <CardTitle className="text-2xl font-bold" style={{ color: 'var(--text)' }}>Schedule New Post</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsAddingPost(false)}
+                  className="rounded-full"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
-              {/* This is where the circular steps and media library integration would go */}
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                This is a placeholder for the "Add new post" form, circular steps, and media library.
-              </p>
-              <Button onClick={() => setIsAddingPost(false)} className="mt-6">Close</Button>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (!scheduleForm.content_id || !scheduleForm.brand_id || !scheduleForm.platform || !scheduleForm.scheduled_date || !scheduleForm.scheduled_time) {
+                  toast.error('Please fill in all required fields');
+                  return;
+                }
+                const scheduledDateTime = new Date(`${scheduleForm.scheduled_date}T${scheduleForm.scheduled_time}`);
+                if (scheduledDateTime <= new Date()) {
+                  toast.error('Scheduled time must be in the future');
+                  return;
+                }
+                schedulePostMutation.mutate(scheduleForm);
+              }} className="space-y-4">
+                {/* Content Selection */}
+                <div>
+                  <Label htmlFor="content" className="mb-2 block" style={{ color: 'var(--text)' }}>
+                    Content *
+                  </Label>
+                  <Select
+                    value={scheduleForm.content_id}
+                    onValueChange={(value) => setScheduleForm({ ...scheduleForm, content_id: value })}
+                  >
+                    <SelectTrigger id="content" className="rounded-xl">
+                      <SelectValue placeholder="Select content to schedule" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contents
+                        .filter(c => c.status === 'generated' || c.status === 'completed_draft')
+                        .map(content => (
+                          <SelectItem key={content.id} value={content.id}>
+                            {content.ai_generated_title || content.original_input || 'Untitled Content'}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Brand Selection */}
+                <div>
+                  <Label htmlFor="brand" className="mb-2 block" style={{ color: 'var(--text)' }}>
+                    Brand *
+                  </Label>
+                  <Select
+                    value={scheduleForm.brand_id}
+                    onValueChange={(value) => setScheduleForm({ ...scheduleForm, brand_id: value })}
+                  >
+                    <SelectTrigger id="brand" className="rounded-xl">
+                      <SelectValue placeholder="Select brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {brands.map(brand => (
+                        <SelectItem key={brand.id} value={brand.id}>
+                          {brand.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Platform Selection */}
+                <div>
+                  <Label htmlFor="platform" className="mb-2 block" style={{ color: 'var(--text)' }}>
+                    Platform *
+                  </Label>
+                  <Select
+                    value={scheduleForm.platform}
+                    onValueChange={(value) => setScheduleForm({ ...scheduleForm, platform: value })}
+                  >
+                    <SelectTrigger id="platform" className="rounded-xl">
+                      <SelectValue placeholder="Select platform" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="facebook">Facebook</SelectItem>
+                      <SelectItem value="instagram">Instagram</SelectItem>
+                      <SelectItem value="tiktok">TikTok</SelectItem>
+                      <SelectItem value="linkedin">LinkedIn</SelectItem>
+                      <SelectItem value="youtube">YouTube</SelectItem>
+                      <SelectItem value="threads">Threads</SelectItem>
+                      <SelectItem value="bluesky">Bluesky</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Caption */}
+                <div>
+                  <Label htmlFor="caption" className="mb-2 block" style={{ color: 'var(--text)' }}>
+                    Caption
+                  </Label>
+                  <Textarea
+                    id="caption"
+                    value={scheduleForm.caption}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, caption: e.target.value })}
+                    placeholder="Enter post caption..."
+                    className="rounded-xl min-h-[100px]"
+                    style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text)' }}
+                  />
+                </div>
+
+                {/* Date and Time */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="date" className="mb-2 block" style={{ color: 'var(--text)' }}>
+                      Date *
+                    </Label>
+                    <Input
+                      id="date"
+                      type="date"
+                      value={scheduleForm.scheduled_date}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, scheduled_date: e.target.value })}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="rounded-xl"
+                      style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text)' }}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="time" className="mb-2 block" style={{ color: 'var(--text)' }}>
+                      Time *
+                    </Label>
+                    <Input
+                      id="time"
+                      type="time"
+                      value={scheduleForm.scheduled_time}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, scheduled_time: e.target.value })}
+                      className="rounded-xl"
+                      style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text)' }}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsAddingPost(false)}
+                    className="rounded-xl"
+                    disabled={schedulePostMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="rounded-xl"
+                    disabled={schedulePostMutation.isPending}
+                    style={{
+                      background: 'linear-gradient(135deg, #88925D 0%, #A4B58B 100%)',
+                      color: 'white'
+                    }}
+                  >
+                    {schedulePostMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Scheduling...
+                      </>
+                    ) : (
+                      <>
+                        <CalendarIcon className="w-4 h-4 mr-2" />
+                        Schedule Post
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </div>

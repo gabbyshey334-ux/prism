@@ -377,9 +377,16 @@ function AutolistSettingsModal({ settings, onClose, onSave }) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent 
+        className="max-w-2xl"
+        aria-labelledby="autolist-schedule-title"
+        aria-describedby="autolist-schedule-description"
+      >
         <DialogHeader>
-          <DialogTitle>Autolist Schedule Settings</DialogTitle>
+          <DialogTitle id="autolist-schedule-title">Autolist Schedule Settings</DialogTitle>
+          <div id="autolist-schedule-description" className="sr-only">
+            Configure your autolist posting schedule. Set up time slots for each day of the week and enable loop mode to automatically restart from the beginning.
+          </div>
         </DialogHeader>
         <div className="space-y-6 mt-4">
           <div className="flex items-center justify-between p-4 rounded-xl"

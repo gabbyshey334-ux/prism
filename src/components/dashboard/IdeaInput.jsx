@@ -30,9 +30,16 @@ const ContentCreationWorkflow = ({ initialIdea, onClose, onComplete, skipToGener
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl">
+      <DialogContent 
+        className="max-w-xl"
+        aria-labelledby="workflow-format-title"
+        aria-describedby="workflow-format-description"
+      >
         <DialogHeader>
-          <DialogTitle>Content Creation Workflow: {initialIdea?.ai_generated_title}</DialogTitle>
+          <DialogTitle id="workflow-format-title">Content Creation Workflow: {initialIdea?.ai_generated_title}</DialogTitle>
+          <div id="workflow-format-description" className="sr-only">
+            Select a content format to start generating content for this idea. Choose from blog post, tweet thread, video script, or Instagram carousel.
+          </div>
         </DialogHeader>
         <div className="py-4">
           <p className="text-sm text-gray-600 mb-4">
@@ -558,13 +565,21 @@ function ContentCreationWorkflowModal({ idea, onAddToIdeas, onClose }) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-md" style={{
-        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(229, 165, 116, 0.3)'
-      }}>
+      <DialogContent 
+        className="max-w-md" 
+        style={{
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(229, 165, 116, 0.3)'
+        }}
+        aria-labelledby="idea-action-title"
+        aria-describedby="idea-action-description"
+      >
         <DialogHeader>
-          <DialogTitle style={{ color: '#3D3D2B' }}>What would you like to do?</DialogTitle>
+          <DialogTitle id="idea-action-title" style={{ color: '#3D3D2B' }}>What would you like to do?</DialogTitle>
+          <div id="idea-action-description" className="sr-only">
+            Choose how to process your content idea. You can create content immediately using the workflow, or save it to your ideas list for later development.
+          </div>
         </DialogHeader>
 
         <div className="space-y-4 mt-6">

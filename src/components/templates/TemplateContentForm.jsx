@@ -73,17 +73,22 @@ export default function TemplateContentForm({ template, onGenerate, onClose }) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" style={{
-        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-        border: '2px solid rgba(229, 165, 116, 0.3)'
-      }}>
+      <DialogContent 
+        className="max-w-3xl max-h-[90vh] overflow-y-auto" 
+        style={{
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+          border: '2px solid rgba(229, 165, 116, 0.3)'
+        }}
+        aria-labelledby="fill-template-title"
+        aria-describedby="fill-template-description"
+      >
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold" style={{ color: '#3D3D2B' }}>
+          <DialogTitle id="fill-template-title" className="text-2xl font-bold" style={{ color: '#3D3D2B' }}>
             Fill Template: {template.name}
           </DialogTitle>
-          <p className="text-sm" style={{ color: '#8B7355' }}>
+          <div id="fill-template-description" className="text-sm" style={{ color: '#8B7355' }}>
             Enter your content and we'll automatically apply it to the template
-          </p>
+          </div>
         </DialogHeader>
 
         <div className="space-y-6 mt-6">

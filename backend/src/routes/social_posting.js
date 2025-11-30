@@ -57,7 +57,9 @@ class OAuthTokenManager {
       // Check if token is expired
       const isExpired = this.isTokenExpired(data);
       if (isExpired) {
-        console.log(`Token expired for ${platform}, attempting refresh...`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Token expired for ${platform}, attempting refresh...`);
+        }
         const refreshedToken = await this.refreshToken(data);
         return refreshedToken;
       }
@@ -124,7 +126,9 @@ class OAuthTokenManager {
         throw new Error(`Failed to update token: ${error.message}`);
       }
 
-      console.log(`Token refreshed successfully for ${token.platform}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Token refreshed successfully for ${token.platform}`);
+      }
       return data;
     } catch (error) {
       console.error(`Token refresh failed for ${token.platform}:`, error);

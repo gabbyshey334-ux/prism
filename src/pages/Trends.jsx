@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { prism } from "@/api/prismClient";
+import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,13 +49,17 @@ const TrendDetailModal = ({ trend, onClose, onCreateContent, onSaveIdea }) => {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl md:max-w-2xl lg:max-w-3xl overflow-y-auto max-h-[90vh] rounded-3xl p-6 bg-background text-foreground">
+      <DialogContent 
+        className="max-w-xl md:max-w-2xl lg:max-w-3xl overflow-y-auto max-h-[90vh] rounded-3xl p-6 bg-background text-foreground"
+        aria-labelledby="trend-modal-title"
+        aria-describedby="trend-modal-description"
+      >
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold mb-2 flex items-center gap-2">
+          <DialogTitle id="trend-modal-title" className="text-2xl font-bold mb-2 flex items-center gap-2">
             {sourceIcon && <span className="text-xl">{sourceIcon}</span>}
             {trend.title}
           </DialogTitle>
-          <DialogDescription className="text-sm">
+          <DialogDescription id="trend-modal-description" className="text-sm">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Badge style={{
                 backgroundColor: trend.viral_potential >= 8 ? 'var(--accent-yellow)' : 'var(--accent-light)',
@@ -324,25 +329,17 @@ export default function Trends() {
       // Build niche from brand data
       const niche = selectedBrandData?.industry || 'content creation';
 
-      // Use the new LLM research endpoint
-      const response = await fetch('/api/trending_topics/research', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          brand_context: brandContext,
-          niche: niche,
-          content_type: 'social media',
-          count: 10
-        })
+      // Use the new LLM research endpoint via API client
+      console.log('Researching trends with brand context:', brandContext);
+      const result = await api.post('/trending_topics/research', {
+        brand_context: brandContext,
+        niche: niche,
+        content_type: 'social media',
+        count: 10
+      }).then(res => res.data).catch(error => {
+        console.error('Research API error:', error.response?.status, error.response?.data || error.message);
+        throw new Error(`Research failed: ${error.response?.statusText || error.message}`);
       });
-
-      if (!response.ok) {
-        throw new Error(`Research failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
       
       if (result.success && result.trends && result.trends.length > 0) {
         // Use the bulk create endpoint to save all trends at once
@@ -355,18 +352,14 @@ export default function Trends() {
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         }));
 
-        // Save trends using bulk endpoint
-        const bulkResponse = await fetch('/api/trending_topics/bulk', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ trends: trendsToSave })
-        });
-
-        if (!bulkResponse.ok) {
-          throw new Error(`Failed to save trends: ${bulkResponse.statusText}`);
-        }
+        // Save trends using bulk endpoint via API client
+        console.log('Saving trends:', trendsToSave.length);
+        await api.post('/trending_topics/bulk', { trends: trendsToSave })
+          .then(res => res.data)
+          .catch(error => {
+            console.error('Bulk save error:', error.response?.status, error.response?.data || error.message);
+            throw new Error(`Failed to save trends: ${error.response?.statusText || error.message}`);
+          });
 
         // Refresh the trends list
         queryClient.invalidateQueries({ queryKey: ['trendingTopics'] });

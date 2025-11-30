@@ -567,10 +567,14 @@ export default function Posts() {
 
       {/* Post Details Modal */}
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto glass-card rounded-2xl">
+        <DialogContent 
+          className="max-w-2xl max-h-[80vh] overflow-y-auto glass-card rounded-2xl"
+          aria-labelledby="post-details-title"
+          aria-describedby="post-details-description"
+        >
           <DialogHeader>
-            <DialogTitle>Post Details</DialogTitle>
-            <DialogDescription>
+            <DialogTitle id="post-details-title">Post Details</DialogTitle>
+            <DialogDescription id="post-details-description">
               Complete information about this social media post
             </DialogDescription>
           </DialogHeader>
@@ -714,10 +718,14 @@ export default function Posts() {
 
       {/* Delete Confirmation Modal */}
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-        <DialogContent className="glass-card rounded-2xl">
+        <DialogContent 
+          className="glass-card rounded-2xl"
+          aria-labelledby="delete-post-title"
+          aria-describedby="delete-post-description"
+        >
           <DialogHeader>
-            <DialogTitle>Delete Post</DialogTitle>
-            <DialogDescription>
+            <DialogTitle id="delete-post-title">Delete Post</DialogTitle>
+            <DialogDescription id="delete-post-description">
               Are you sure you want to delete this post? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>

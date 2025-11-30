@@ -36,15 +36,23 @@ export default function IdeaDetailModal({ idea, brands, onClose, onOpenWorkflow 
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl" style={{
-        backgroundColor: 'white',
-        border: '2px solid rgba(125, 90, 74, 0.2)',
-        boxShadow: '0 20px 50px rgba(125, 90, 74, 0.15)'
-      }}>
+      <DialogContent 
+        className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl" 
+        style={{
+          backgroundColor: 'white',
+          border: '2px solid rgba(125, 90, 74, 0.2)',
+          boxShadow: '0 20px 50px rgba(125, 90, 74, 0.15)'
+        }}
+        aria-labelledby="idea-detail-title"
+        aria-describedby="idea-detail-description"
+      >
         <DialogHeader>
-          <DialogTitle className="text-3xl font-bold pr-8 leading-tight" style={{ color: '#2D2416' }}>
+          <DialogTitle id="idea-detail-title" className="text-3xl font-bold pr-8 leading-tight" style={{ color: '#2D2416' }}>
             {idea.ai_generated_title || idea.original_input}
           </DialogTitle>
+          <div id="idea-detail-description" className="sr-only">
+            Detailed view of this content idea. View all information, research data, and options to generate content or manage the idea.
+          </div>
         </DialogHeader>
 
         <div className="space-y-6 mt-6">

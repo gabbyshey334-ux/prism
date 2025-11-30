@@ -63,7 +63,10 @@ export default function Login() {
     throw lastErr
   }
 
-  const submit = async () => {
+  const submit = async (e) => {
+    if (e) {
+      e.preventDefault()
+    }
     setLoading(true)
     setError('')
     try {
@@ -164,11 +167,11 @@ export default function Login() {
 
           {mode === 'login' ? (
             <div className="space-y-3">
-              <Button onClick={loginWithGoogle} variant="outline" className="w-full h-11 rounded-xl justify-start">
+              <Button onClick={loginWithGoogle} variant="outline" className="w-full h-11 rounded-xl justify-start" type="button">
                 <FcGoogle className="w-6 h-6 mr-3" />
                 Continue with Google
               </Button>
-              <Button onClick={loginWithFacebook} variant="outline" className="w-full h-11 rounded-xl justify-start">
+              <Button onClick={loginWithFacebook} variant="outline" className="w-full h-11 rounded-xl justify-start" type="button">
                 <FaFacebook className="w-6 h-6 mr-3" color="#1877F2" />
                 Continue with Facebook
               </Button>
@@ -177,37 +180,92 @@ export default function Login() {
                 <span className="text-xs text-gray-400">OR</span>
                 <div className="h-px flex-1 bg-gray-200" />
               </div>
-              <Input placeholder="you@example.com" type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-11 rounded-xl" />
-              <Input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} className="h-11 rounded-xl" />
-              {error && <div className="text-sm text-red-600">{error}</div>}
-              <Button onClick={submit} disabled={loading} className="w-full h-11 rounded-xl bg-gray-900 text-white hover:bg-gray-800">
-                {loading ? 'Please wait...' : 'Sign in'}
-              </Button>
+              <form onSubmit={submit} className="space-y-3">
+                <Input 
+                  placeholder="you@example.com" 
+                  type="email" 
+                  name="email"
+                  value={email} 
+                  onChange={e => setEmail(e.target.value)} 
+                  className="h-11 rounded-xl" 
+                  required
+                  autoComplete="email"
+                />
+                <Input 
+                  placeholder="Password" 
+                  type="password" 
+                  name="password"
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  className="h-11 rounded-xl" 
+                  required
+                  autoComplete="current-password"
+                />
+                {error && <div className="text-sm text-red-600">{error}</div>}
+                <Button type="submit" disabled={loading} className="w-full h-11 rounded-xl bg-gray-900 text-white hover:bg-gray-800">
+                  {loading ? 'Please wait...' : 'Sign in'}
+                </Button>
+              </form>
               <div className="flex items-center justify-between text-sm text-gray-600">
-                <button className="underline hover:text-gray-800" onClick={async () => {
-                  try {
-                    if (!email) { setError('Enter your email to reset'); return }
-                    await sendPasswordResetEmail(firebaseAuth, email)
-                    setError('Password reset email sent')
-                  } catch (e) {
-                    setError(e?.message || 'Failed to send reset email')
-                  }
-                }}>Forgot password?</button>
+                <button 
+                  type="button"
+                  className="underline hover:text-gray-800" 
+                  onClick={async () => {
+                    try {
+                      if (!email) { setError('Enter your email to reset'); return }
+                      await sendPasswordResetEmail(firebaseAuth, email)
+                      setError('Password reset email sent')
+                    } catch (e) {
+                      setError(e?.message || 'Failed to send reset email')
+                    }
+                  }}
+                >
+                  Forgot password?
+                </button>
                 <div>
-                  Need an account? <button className="underline hover:text-gray-800" onClick={() => setMode('register')}>Sign up</button>
+                  Need an account? <button type="button" className="underline hover:text-gray-800" onClick={() => setMode('register')}>Sign up</button>
                 </div>
               </div>
             </div>
           ) : (
             <div className="space-y-3">
-              <button className="text-sm text-gray-600 hover:text-gray-800" onClick={() => setMode('login')}>← Back to sign in</button>
-              <Input placeholder="you@example.com" type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-11 rounded-xl" />
-              <Input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} className="h-11 rounded-xl" />
-              <Input placeholder="Confirm Password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="h-11 rounded-xl" />
-              {error && <div className="text-sm text-red-600">{error}</div>}
-              <Button onClick={submit} disabled={loading} className="w-full h-11 rounded-xl bg-gray-900 text-white hover:bg-gray-800">
-                {loading ? 'Please wait...' : 'Create account'}
-              </Button>
+              <button type="button" className="text-sm text-gray-600 hover:text-gray-800" onClick={() => setMode('login')}>← Back to sign in</button>
+              <form onSubmit={submit} className="space-y-3">
+                <Input 
+                  placeholder="you@example.com" 
+                  type="email" 
+                  name="email"
+                  value={email} 
+                  onChange={e => setEmail(e.target.value)} 
+                  className="h-11 rounded-xl" 
+                  required
+                  autoComplete="email"
+                />
+                <Input 
+                  placeholder="Password" 
+                  type="password" 
+                  name="password"
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  className="h-11 rounded-xl" 
+                  required
+                  autoComplete="new-password"
+                />
+                <Input 
+                  placeholder="Confirm Password" 
+                  type="password" 
+                  name="confirmPassword"
+                  value={confirmPassword} 
+                  onChange={e => setConfirmPassword(e.target.value)} 
+                  className="h-11 rounded-xl" 
+                  required
+                  autoComplete="new-password"
+                />
+                {error && <div className="text-sm text-red-600">{error}</div>}
+                <Button type="submit" disabled={loading} className="w-full h-11 rounded-xl bg-gray-900 text-white hover:bg-gray-800">
+                  {loading ? 'Please wait...' : 'Create account'}
+                </Button>
+              </form>
             </div>
           )}
         </CardContent>

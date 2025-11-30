@@ -9,17 +9,23 @@ async function getUserId(req) {
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
     
     if (!token) {
-      console.log('No token provided in Authorization header')
+      if (process.env.NODE_ENV === 'development') {
+        console.log('No token provided in Authorization header')
+      }
       return null
     }
 
-    console.log('Attempting to verify token...')
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Attempting to verify token...')
+    }
     
     // Try Firebase Admin first (since you're using Firebase auth)
     try {
       const admin = require('firebase-admin')
       if (!admin.apps.length) {
-        console.log('Initializing Firebase Admin...')
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Initializing Firebase Admin...')
+        }
         admin.initializeApp({
           credential: admin.credential.cert({
             projectId: process.env.FIREBASE_PROJECT_ID,
@@ -31,31 +37,41 @@ async function getUserId(req) {
       const decoded = await admin.auth().verifyIdToken(token)
       const uid = decoded?.uid
       if (uid) {
-        console.log('Firebase auth successful, user ID:', uid)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Firebase auth successful')
+        }
         return uid
       }
     } catch (firebaseError) {
-      console.log('Firebase auth failed:', firebaseError.message)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Firebase auth failed:', firebaseError.message)
+      }
     }
     
     // Try Supabase as fallback
     try {
       const { data, error } = await supabaseClient.auth.getUser(token)
       if (!error && data?.user?.id) {
-        console.log('Supabase auth successful, user ID:', data.user.id)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Supabase auth successful')
+        }
         return data.user.id
       }
-      if (error) {
+      if (error && process.env.NODE_ENV === 'development') {
         console.log('Supabase auth error:', error.message)
       }
     } catch (supabaseError) {
-      console.log('Supabase auth failed:', supabaseError.message)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Supabase auth failed:', supabaseError.message)
+      }
     }
     
-    console.log('All auth methods failed')
+    if (process.env.NODE_ENV === 'development') {
+      console.log('All auth methods failed')
+    }
     return null
   } catch (error) {
-    console.error('getUserId error:', error)
+    console.error('getUserId error:', error.message)
     return null
   }
 }
@@ -80,12 +96,16 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    console.log('=== Brand Creation Request ===')
-    console.log('Headers:', req.headers.authorization ? 'Authorization header present' : 'No authorization header')
-    console.log('Body:', JSON.stringify(req.body))
+    if (process.env.NODE_ENV === 'development') {
+      console.log('=== Brand Creation Request ===')
+      console.log('Headers:', req.headers.authorization ? 'Authorization header present' : 'No authorization header')
+      console.log('Body:', JSON.stringify(req.body))
+    }
     
     const userId = await getUserId(req)
-    console.log('User ID extracted:', userId || 'null')
+    if (process.env.NODE_ENV === 'development') {
+      console.log('User ID extracted')
+    }
     
     const firebaseUid = userId
     const userUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(firebaseUid)

@@ -278,7 +278,11 @@ export default function ContentCreationWorkflow({
     onSuccess: (updated) => {
       console.log('Auto-save successful');
       setIdeaData(updated);
+      // Invalidate all content-related queries to refresh UI
       queryClient.invalidateQueries({ queryKey: ['contents'] });
+      queryClient.invalidateQueries({ queryKey: ['recentIdeas'] });
+      queryClient.invalidateQueries({ queryKey: ['ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['generatedContent'] });
     },
     onError: (error) => {
       console.error('Auto-save failed:', error);
@@ -309,7 +313,7 @@ export default function ContentCreationWorkflow({
       brand_id: selectedBrandId,
       status: currentStep === 'publish' ? 'completed_draft' :
               currentStep === 'editor' ? 'visuals_generated' :
-              currentStep === 'text_review' ? 'text_generated' :
+              currentStep === 'text_review' ? 'generated' : // Use 'generated' so it shows in Generated tab
               'draft'
     };
 
@@ -487,6 +491,11 @@ Also provide a main caption for the post that tells a compelling story with emot
               response_json_schema: schema
             });
 
+            if (!response || (response.error && !response.caption && !response.slides)) {
+              console.error('Invalid LLM response for carousel:', response);
+              throw new Error(`Failed to generate carousel content: ${response?.error || 'Invalid response'}`);
+            }
+
             generated[formatId] = response;
           } else {
             // No template - default
@@ -523,24 +532,29 @@ Also provide a main caption for the post that tells a compelling story with emot
           const tweetCount = options.tweet_count || 5;
           prompt += `\nCreate exactly ${tweetCount} tweets for a thread. Each tweet should be engaging and within 280 characters. Also provide 5-10 relevant hashtags (WITHOUT # prefix).`;
 
-          const response = await prism.integrations.Core.InvokeLLM({
-            prompt,
-            response_json_schema: {
-              type: "object",
-              properties: {
-                tweets: {
-                  type: "array",
-                  minItems: tweetCount,
-                  maxItems: tweetCount,
-                  items: { type: "string" }
+            const response = await prism.integrations.Core.InvokeLLM({
+              prompt,
+              response_json_schema: {
+                type: "object",
+                properties: {
+                  tweets: {
+                    type: "array",
+                    minItems: tweetCount,
+                    maxItems: tweetCount,
+                    items: { type: "string" }
+                  },
+                  hashtags: { type: "array", items: { type: "string" }, description: "Hashtags WITHOUT # prefix" }
                 },
-                hashtags: { type: "array", items: { type: "string" }, description: "Hashtags WITHOUT # prefix" }
-              },
-              required: ["tweets", "hashtags"]
-            }
-          });
+                required: ["tweets", "hashtags"]
+              }
+            });
 
-          generated[formatId] = response;
+            if (!response || (response.error && !response.tweets)) {
+              console.error('Invalid LLM response for thread:', response);
+              throw new Error(`Failed to generate thread content: ${response?.error || 'Invalid response'}`);
+            }
+
+            generated[formatId] = response;
         } else if (template && template.placeholders && template.placeholders.length > 0) {
           // Single content with template
           prompt += `\nGenerate content for ONLY these fields: ${template.placeholders.filter(p => p.type === 'text').map(p => p.label).join(', ')}.
@@ -597,6 +611,11 @@ Also provide a caption for the post that tells a compelling story with emotional
               }
             });
 
+            if (!response || (response.error && !response.caption)) {
+              console.error('Invalid LLM response for caption:', response);
+              throw new Error(`Failed to generate caption: ${response?.error || 'Invalid response'}`);
+            }
+
             generated[formatId] = response;
           } else {
             const response = await prism.integrations.Core.InvokeLLM({
@@ -611,12 +630,37 @@ Also provide a caption for the post that tells a compelling story with emotional
               }
             });
 
+            if (!response || (response.error && !response.content)) {
+              console.error('Invalid LLM response for content:', response);
+              throw new Error(`Failed to generate content: ${response?.error || 'Invalid response'}`);
+            }
+
             generated[formatId] = response;
           }
         }
       }
 
       setGeneratedText(generated);
+      
+      // Explicitly save generated content to database immediately
+      if (ideaData?.id) {
+        try {
+          const savedContent = await autoSaveMutation.mutateAsync({
+            generated_text: generated,
+            workflow_step: 'text_review',
+            status: 'generated' // Use 'generated' status so it shows in Generated tab
+          });
+          console.log('Generated content saved to database:', savedContent);
+          
+          // Force refresh content queries to update UI counters
+          queryClient.invalidateQueries({ queryKey: ['contents'] });
+          queryClient.invalidateQueries({ queryKey: ['recentIdeas'] });
+        } catch (saveError) {
+          console.error('Failed to save generated content:', saveError);
+          toast.error('Content generated but failed to save. Please try again.');
+        }
+      }
+      
       setCurrentStep("text_review");
       toast.success("Content generated!");
     } catch (error) {
@@ -2672,9 +2716,16 @@ CRITICAL HASHTAG RULES:
 
         {/* Media Library Dialog - Updated */}
         <Dialog open={showMediaLibrary} onOpenChange={setShowMediaLibrary}>
-          <DialogContent className="sm:max-w-[800px] h-[70vh] flex flex-col">
+          <DialogContent 
+            className="sm:max-w-[800px] h-[70vh] flex flex-col"
+            aria-labelledby="media-library-title"
+            aria-describedby="media-library-description"
+          >
             <DialogHeader>
-              <DialogTitle>Select Media from Library</DialogTitle>
+              <DialogTitle id="media-library-title">Select Media from Library</DialogTitle>
+              <div id="media-library-description" className="sr-only">
+                Browse and select media files from your library to use in your content. Click on a media item to add it to your content.
+              </div>
             </DialogHeader>
             <ScrollArea className="flex-1 pr-4">
               {mediaLibrary.length === 0 ? (

@@ -343,9 +343,16 @@ router.delete('/:id', async (req, res) => {
 // LLM Research Endpoint - Enhanced with brand-aware prompting
 router.post('/research', async (req, res) => {
   try {
+    console.log('Trend research request received:', {
+      method: req.method,
+      url: req.originalUrl,
+      body: { ...req.body, brand_context: req.body.brand_context?.substring(0, 100) + '...' }
+    });
+
     const { brand_context, niche, content_type, count = 5 } = req.body
 
     if (!brand_context) {
+      console.warn('Trend research failed: missing brand_context');
       return res.status(400).json({
         error: 'validation_failed',
         message: 'Brand context is required for trend research'
@@ -426,10 +433,16 @@ router.post('/research', async (req, res) => {
     })
 
   } catch (e) {
-    console.error('Trend research error:', e)
+    console.error('Trend research error:', {
+      error: e.message,
+      stack: e.stack,
+      method: req.method,
+      url: req.originalUrl,
+      body: req.body
+    });
     res.status(500).json({
       error: 'trend_research_failed',
-      message: 'An unexpected error occurred during trend research'
+      message: e.message || 'An unexpected error occurred during trend research'
     })
   }
 })

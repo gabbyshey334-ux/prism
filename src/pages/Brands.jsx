@@ -595,9 +595,16 @@ export default function BrandsPage() {
 
         {/* Create Brand Dialog */}
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogContent className="rounded-3xl">
+          <DialogContent 
+            className="rounded-3xl"
+            aria-labelledby="create-brand-title"
+            aria-describedby="create-brand-description"
+          >
             <DialogHeader>
-              <DialogTitle>Create New Brand</DialogTitle>
+              <DialogTitle id="create-brand-title">Create New Brand</DialogTitle>
+              <div id="create-brand-description" className="sr-only">
+                Create a new brand profile. Enter the brand name, description, website URL, and primary color to get started.
+              </div>
             </DialogHeader>
             <div className="space-y-4 mt-4">
               <div>
