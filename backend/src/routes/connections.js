@@ -3,7 +3,7 @@ const { supabaseAdmin } = require('../config/supabase')
 
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabaseAdmin.from('social_connections').select('*').order('created_at', { ascending: false })
+    const { data, error } = await supabaseAdmin.from('social_media_connections').select('*').order('created_at', { ascending: false })
     if (error) return res.status(400).json({ error: error.message })
     res.json(data || [])
   } catch (e) {
@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
 
 router.get('/filter', async (req, res) => {
   try {
-    let query = supabaseAdmin.from('social_connections').select('*')
+    let query = supabaseAdmin.from('social_media_connections').select('*')
     Object.entries(req.query).forEach(([key, val]) => {
       query = query.eq(key, val)
     })
@@ -27,7 +27,7 @@ router.get('/filter', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { data, error } = await supabaseAdmin.from('social_connections').insert(req.body).select('*').single()
+    const { data, error } = await supabaseAdmin.from('social_media_connections').insert(req.body).select('*').single()
     if (error) return res.status(400).json({ error: error.message })
     res.json(data)
   } catch (e) {
@@ -38,7 +38,7 @@ router.post('/', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params
-    const { error } = await supabaseAdmin.from('social_connections').delete().eq('id', id)
+    const { error } = await supabaseAdmin.from('social_media_connections').delete().eq('id', id)
     if (error) return res.status(400).json({ error: error.message })
     res.json({ ok: true })
   } catch (e) {

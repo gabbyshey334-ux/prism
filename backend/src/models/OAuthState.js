@@ -1,5 +1,7 @@
 const { supabaseAdmin } = require('../config/supabase');
 const crypto = require('crypto');
+const { v5: uuidv5 } = require('uuid');
+const UID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 /**
  * OAuthState Model
@@ -21,11 +23,15 @@ class OAuthState {
     const stateToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
+    const userUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(userId))
+      ? String(userId)
+      : uuidv5(String(userId), UID_NAMESPACE);
+
     const { data, error } = await supabaseAdmin
       .from('oauth_states')
       .insert({
         state: stateToken, // Note: column is 'state' not 'state_token'
-        user_id: userId,
+        user_id: userUuid,
         platform: platform,
         redirect_url: redirectUrl,
         expires_at: expiresAt.toISOString()
@@ -126,4 +132,3 @@ class OAuthState {
 }
 
 module.exports = OAuthState;
-
