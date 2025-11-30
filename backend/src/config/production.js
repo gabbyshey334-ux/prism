@@ -1,6 +1,11 @@
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const RedisStore = require('rate-limit-redis');
+let RedisStore;
+try {
+  RedisStore = require('rate-limit-redis');
+} catch (_) {
+  RedisStore = null;
+}
 const Redis = require('redis');
 const session = require('express-session');
 const RedisStoreSession = require('connect-redis')(session);
@@ -51,10 +56,7 @@ const configureProductionSecurity = (app) => {
 
   // General API rate limiter
   const generalLimiter = rateLimit({
-    store: new RedisStore({
-      client: redisClient,
-      prefix: 'rl:general:'
-    }),
+    store: RedisStore ? new RedisStore({ client: redisClient, prefix: 'rl:general:' }) : undefined,
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // limit each IP to 100 requests per windowMs
     message: {
@@ -78,10 +80,7 @@ const configureProductionSecurity = (app) => {
 
   // Strict rate limiter for auth endpoints
   const authLimiter = rateLimit({
-    store: new RedisStore({
-      client: redisClient,
-      prefix: 'rl:auth:'
-    }),
+    store: RedisStore ? new RedisStore({ client: redisClient, prefix: 'rl:auth:' }) : undefined,
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 5, // limit each IP to 5 requests per windowMs
     skipSuccessfulRequests: true,
@@ -100,10 +99,7 @@ const configureProductionSecurity = (app) => {
 
   // Social posting rate limiter (per brand)
   const socialPostingLimiter = rateLimit({
-    store: new RedisStore({
-      client: redisClient,
-      prefix: 'rl:social:'
-    }),
+    store: RedisStore ? new RedisStore({ client: redisClient, prefix: 'rl:social:' }) : undefined,
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 50, // limit each brand to 50 posts per hour
     keyGenerator: (req) => {
