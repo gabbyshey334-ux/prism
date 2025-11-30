@@ -13,6 +13,28 @@ router.use(extractAuth);
  */
 router.post('/connect', OAuthController.connect);
 
+// New: GET /api/oauth/:platform initiates OAuth and redirects to provider
+router.get('/:platform', async (req, res) => {
+  try {
+    const platform = (req.params.platform || '').toLowerCase();
+    const userId = req.user?.uid;
+    if (!platform) {
+      return res.status(400).json({ error: 'platform_required' });
+    }
+    if (!userId) {
+      return res.status(401).json({ error: 'authentication_required' });
+    }
+    const OAuthState = require('../models/OAuthState');
+    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback`;
+    const state = await OAuthState.create({ userId, platform, redirectUrl });
+    const authUrl = OAuthController.getAuthUrl(platform, state.state);
+    return res.redirect(authUrl);
+  } catch (error) {
+    console.error('OAuth init error:', error);
+    return res.status(500).json({ error: 'oauth_init_failed', message: error.message });
+  }
+});
+
 /**
  * GET /api/oauth/:platform/callback
  * Handle OAuth callback from platform
@@ -148,4 +170,3 @@ router.get('/platforms', (req, res) => {
 });
 
 module.exports = router;
-

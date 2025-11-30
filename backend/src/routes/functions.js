@@ -94,7 +94,9 @@ router.post('/socialMediaConnect', async (req, res) => {
 
     // Redirect to OAuth endpoint
     const backendUrl = process.env.BACKEND_URL || process.env.API_URL || ''
-    const authUrl = backendUrl ? `${backendUrl}/api/oauth/${platform}` : `/api/oauth/${platform}`
+    const authBase = backendUrl ? `${backendUrl}/api/oauth/${platform}` : `/api/oauth/${platform}`
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    const authUrl = token ? `${authBase}?token=${encodeURIComponent(token)}` : authBase
     return res.json({ authUrl, platform })
   } catch (e) {
     console.error('socialMediaConnect error:', e)
@@ -208,7 +210,9 @@ router.post('/invoke/:name', async (req, res) => {
         }
         {
           const backendUrl = process.env.BACKEND_URL || process.env.API_URL || ''
-          const authUrl = backendUrl ? `${backendUrl}/api/oauth/${platform}` : `/api/oauth/${platform}`
+          const authBase = backendUrl ? `${backendUrl}/api/oauth/${platform}` : `/api/oauth/${platform}`
+          const token = req.headers.authorization?.replace('Bearer ', '')
+          const authUrl = token ? `${authBase}?token=${encodeURIComponent(token)}` : authBase
           return res.json({ authUrl, platform })
         }
       }

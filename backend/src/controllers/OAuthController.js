@@ -50,12 +50,12 @@ class OAuthController {
       });
 
       // Get OAuth URL based on platform
-      const authUrl = this.getAuthUrl(platform.toLowerCase(), state.state_token);
+      const authUrl = this.getAuthUrl(platform.toLowerCase(), state.state);
 
       res.json({
         success: true,
-        auth_url: authUrl,
-        state_token: state.state, // Note: column is 'state' not 'state_token'
+        authUrl: authUrl,
+        state_token: state.state,
         platform: platform.toLowerCase(),
         expires_at: state.expires_at
       });
@@ -476,4 +476,3 @@ class OAuthController {
 }
 
 module.exports = OAuthController;
-
