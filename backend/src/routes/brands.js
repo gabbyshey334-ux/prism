@@ -1,5 +1,7 @@
 const router = require('express').Router()
 const { supabaseAdmin, supabaseClient } = require('../config/supabase')
+const { v5: uuidv5 } = require('uuid')
+const UID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'
 
 async function getUserId(req) {
   try {
@@ -77,8 +79,13 @@ router.post('/', async (req, res) => {
     const userId = await getUserId(req)
     console.log('User ID extracted:', userId || 'null')
     
+    const firebaseUid = userId
+    const userUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(firebaseUid)
+      ? firebaseUid
+      : uuidv5(String(firebaseUid), UID_NAMESPACE)
+
     const payload = {
-      user_id: userId,
+      user_id: userUuid,
       name: req.body?.name,
       description: req.body?.description || null,
       website_url: req.body?.website_url || null,
