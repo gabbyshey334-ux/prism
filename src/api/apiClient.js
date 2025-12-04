@@ -485,44 +485,41 @@ export const entities = {
 // Integrations API
 export const integrations = {
   Core: {
-    UploadFile: async ({ file }) => {
-      const { getStorage, ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-      const proj = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_FIREBASE_PROJECT_ID : undefined;
-      const bucket = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_FIREBASE_STORAGE_BUCKET : undefined;
-      const bucketHost = bucket ? bucket.replace(/^https?:\/\//, '') : undefined;
-      const bucketUrl = bucketHost ? (bucketHost.startsWith('gs://') ? bucketHost : `gs://${bucketHost}`) : (proj ? `gs://${proj}.appspot.com` : undefined);
-      const storage = bucketUrl ? getStorage(undefined, bucketUrl) : getStorage();
-      
-      // Generate unique filename with timestamp and sanitized name
-      const timestamp = Date.now();
-      const sanitizedName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
-      const path = `uploads/${timestamp}_${sanitizedName}`;
-      const storageRef = ref(storage, path);
-      
-      // Upload with metadata
-      const metadata = {
-        contentType: file.type,
-        customMetadata: {
-          originalName: file.name,
-          uploadTime: new Date().toISOString(),
-          size: file.size.toString(),
-          sizeHumanReadable: `${(file.size / 1024 / 1024).toFixed(2)} MB`
+    UploadFile: async ({ file, brand_id }) => {
+      try {
+        // Use Supabase Storage for file uploads
+        const formData = new FormData();
+        formData.append('file', file);
+        if (brand_id) {
+          formData.append('brand_id', brand_id);
         }
-      };
-      
-      const snap = await uploadBytes(storageRef, file, metadata);
-      const url = await getDownloadURL(snap.ref);
-      
-      return { 
-        file_url: url,
-        storage_path: path,
-        metadata: {
-          original_name: file.name,
-          mime_type: file.type,
-          size: file.size,
-          uploaded_at: new Date().toISOString()
+
+        const res = await api.post('/uploads/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          },
+          timeout: 120000 // 2 minutes for large files
+        });
+
+        if (!res.data || !res.data.file_url) {
+          throw new Error('Upload failed: No file URL returned');
         }
-      };
+
+        return {
+          file_url: res.data.file_url,
+          storage_path: res.data.storage_path,
+          upload_id: res.data.upload_id,
+          metadata: res.data.metadata || {
+            original_name: file.name,
+            mime_type: file.type,
+            size: file.size,
+            uploaded_at: new Date().toISOString()
+          }
+        };
+      } catch (error) {
+        console.error('File upload error:', error.response?.data || error.message);
+        throw new Error(error.response?.data?.message || error.message || 'Failed to upload file');
+      }
     },
     InvokeLLM: async ({ prompt, response_json_schema, add_context_from_internet, file_urls }) => {
       try {

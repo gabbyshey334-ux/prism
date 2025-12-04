@@ -1,5 +1,31 @@
 const router = require('express').Router()
 const { supabaseAdmin } = require('../config/supabase')
+const multer = require('multer')
+const { extractAuth } = require('../middleware/extractAuth')
+
+// Apply auth extraction to all routes
+router.use(extractAuth)
+
+// Configure multer for memory storage (we'll upload directly to Supabase)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimeTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+      'video/mp4', 'video/webm', 'video/quicktime',
+      'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain', 'text/csv'
+    ]
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error(`Invalid file type: ${file.mimetype}. Allowed types: ${allowedMimeTypes.join(', ')}`))
+    }
+  }
+})
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 const ALLOWED_MIME_TYPES = [
@@ -72,6 +98,125 @@ router.get('/', async (req, res) => {
   }
 })
 
+// File upload endpoint - uploads file to Supabase Storage and creates metadata record
+// MUST come before /:id route to avoid route conflicts
+router.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'validation_failed',
+        message: 'No file provided'
+      })
+    }
+
+    // Extract user ID from auth token (Firebase) or request
+    const userId = req.user?.uid || req.userId || req.body.user_id
+    if (!userId) {
+      return res.status(401).json({
+        error: 'unauthorized',
+        message: 'User authentication required. Please ensure you are logged in.'
+      })
+    }
+
+    const file = req.file
+    const brandId = req.body.brand_id || null
+
+    // Generate unique file path
+    const timestamp = Date.now()
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9_.-]/g, '_')
+    const filePath = `uploads/${userId}/${timestamp}_${sanitizedName}`
+
+    // Upload file to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+      .from('files')
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+        metadata: {
+          originalName: file.originalname,
+          uploadedAt: new Date().toISOString(),
+          userId: userId,
+          brandId: brandId || null
+        }
+      })
+
+    if (uploadError) {
+      console.error('Supabase storage upload error:', uploadError)
+      return res.status(500).json({
+        error: 'storage_upload_failed',
+        message: uploadError.message || 'Failed to upload file to storage'
+      })
+    }
+
+    // Get public URL
+    const { data: urlData } = supabaseAdmin.storage
+      .from('files')
+      .getPublicUrl(filePath)
+
+    const publicUrl = urlData.publicUrl
+
+    // Determine file type
+    let fileType = 'document'
+    if (file.mimetype.startsWith('image/')) {
+      fileType = 'image'
+    } else if (file.mimetype.startsWith('video/')) {
+      fileType = 'video'
+    }
+
+    // Create metadata record in uploads table
+    const uploadRecord = {
+      user_id: userId,
+      brand_id: brandId,
+      file_name: file.originalname,
+      file_url: publicUrl,
+      file_type: fileType,
+      mime_type: file.mimetype,
+      file_size: file.size,
+      storage_path: filePath,
+      metadata: {
+        original_name: file.originalname,
+        uploaded_at: new Date().toISOString(),
+        content_type: file.mimetype
+      }
+    }
+
+    const { data: dbData, error: dbError } = await supabaseAdmin
+      .from('uploads')
+      .insert(uploadRecord)
+      .select('*')
+      .single()
+
+    if (dbError) {
+      console.error('Database insert error:', dbError)
+      // Try to delete the uploaded file if database insert fails
+      await supabaseAdmin.storage.from('files').remove([filePath])
+      return res.status(500).json({
+        error: 'database_insert_failed',
+        message: dbError.message || 'Failed to create upload record'
+      })
+    }
+
+    res.status(201).json({
+      file_url: publicUrl,
+      storage_path: filePath,
+      metadata: {
+        original_name: file.originalname,
+        mime_type: file.mimetype,
+        size: file.size,
+        uploaded_at: new Date().toISOString()
+      },
+      upload_id: dbData.id,
+      ...dbData
+    })
+  } catch (e) {
+    console.error('File upload exception:', e)
+    res.status(500).json({
+      error: 'upload_failed',
+      message: e.message || 'Failed to upload file'
+    })
+  }
+})
+
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params
@@ -102,6 +247,7 @@ router.get('/:id', async (req, res) => {
   }
 })
 
+// Metadata-only endpoint (for backward compatibility)
 router.post('/', async (req, res) => {
   try {
     const uploadData = req.body

@@ -129,12 +129,8 @@ export default function CESDKEditor({
             try {
               const { file_url } = await prism.integrations.Core.UploadFile({ file });
               
-              await prism.entities.Upload.create({
-                file_name: file.name,
-                file_url: file_url,
-                file_type: file.type,
-                file_size: file.size
-              });
+              // Upload entity is automatically created by the upload endpoint
+              // No need to create it again here
 
               return {
                 id: `upload-${Date.now()}`,

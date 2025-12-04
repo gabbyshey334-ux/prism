@@ -244,6 +244,13 @@ Generate a catchy, viral-worthy title and categorize this content idea.`,
       processedData.ai_generated_category = metadata.category;
       processedData.viral_score = metadata.viral_potential;
 
+      // Save uploaded image URLs to the content data
+      if (uploadedImages.length > 0) {
+        processedData.uploaded_file_url = uploadedImages[0]; // Primary image
+        processedData.uploaded_file_type = 'image';
+        processedData.generated_images = uploadedImages; // All uploaded images
+      }
+
       // Show options: Create Content or Add to Ideas
       setPendingIdea(processedData);
       setShowWorkflowOption(true);

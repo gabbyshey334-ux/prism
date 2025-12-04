@@ -848,14 +848,8 @@ CRITICAL HASHTAG RULES:
       for (const file of files) {
         const { file_url } = await prism.integrations.Core.UploadFile({ file });
         urls.push(file_url);
-
-        // Save to Upload entity
-        await prism.entities.Upload.create({
-          file_name: file.name,
-          file_url: file_url,
-          file_type: file.type,
-          file_size: file.size
-        });
+        // Upload entity is automatically created by the upload endpoint
+        // No need to create it again here
       }
 
       // Get template to map to placeholders
