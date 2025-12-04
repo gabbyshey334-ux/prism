@@ -567,6 +567,163 @@ export const integrations = {
   }
 };
 
+// Agents API - AI-powered conversation agents
+const agents = {
+  /**
+   * Create a new conversation with an AI agent
+   * @param {Object} params - Conversation parameters
+   * @param {string} params.agent_name - Name of the agent (e.g., "content_brainstormer", "idea_generator")
+   * @param {Object} params.metadata - Optional metadata (name, description, etc.)
+   * @returns {Promise<Object>} Conversation object
+   */
+  createConversation: async ({ agent_name, metadata = {} }) => {
+    try {
+      const res = await api.post('/agents/conversations', {
+        agent_name,
+        metadata
+      });
+      return res.data;
+    } catch (e) {
+      console.error('Create conversation error:', e);
+      if (DEV_MODE && BYPASS_AUTH) {
+        return {
+          id: `dev-conv-${Date.now()}`,
+          agent_name,
+          metadata,
+          messages: [],
+          created_at: new Date().toISOString()
+        };
+      }
+      throw e;
+    }
+  },
+
+  /**
+   * List conversations for a specific agent
+   * @param {Object} params - Query parameters
+   * @param {string} params.agent_name - Name of the agent
+   * @returns {Promise<Array>} Array of conversation objects
+   */
+  listConversations: async ({ agent_name }) => {
+    try {
+      const res = await api.get('/agents/conversations', {
+        params: { agent_name }
+      });
+      return res.data || [];
+    } catch (e) {
+      console.error('List conversations error:', e);
+      if (DEV_MODE && BYPASS_AUTH) return [];
+      throw e;
+    }
+  },
+
+  /**
+   * Get a specific conversation by ID
+   * @param {string} conversationId - Conversation ID
+   * @returns {Promise<Object>} Conversation object
+   */
+  getConversation: async (conversationId) => {
+    try {
+      const res = await api.get(`/agents/conversations/${conversationId}`);
+      return res.data;
+    } catch (e) {
+      console.error('Get conversation error:', e);
+      if (DEV_MODE && BYPASS_AUTH) {
+        return {
+          id: conversationId,
+          agent_name: 'content_brainstormer',
+          messages: [],
+          metadata: {}
+        };
+      }
+      throw e;
+    }
+  },
+
+  /**
+   * Add a message to a conversation
+   * @param {Object} conversation - Conversation object (with limited history)
+   * @param {Object} message - Message object
+   * @param {string} message.role - "user" or "assistant"
+   * @param {string} message.content - Message content
+   * @returns {Promise<Object>} Updated conversation
+   */
+  addMessage: async (conversation, message) => {
+    try {
+      const res = await api.post(`/agents/conversations/${conversation.id}/messages`, {
+        role: message.role,
+        content: message.content,
+        conversation_history: conversation.messages || []
+      });
+      return res.data;
+    } catch (e) {
+      console.error('Add message error:', e);
+      if (DEV_MODE && BYPASS_AUTH) {
+        return {
+          ...conversation,
+          messages: [...(conversation.messages || []), message, {
+            role: 'assistant',
+            content: 'This is a mock AI response. Configure agents API in backend for real responses.'
+          }]
+        };
+      }
+      throw e;
+    }
+  },
+
+  /**
+   * Delete a conversation
+   * @param {string} conversationId - Conversation ID
+   * @returns {Promise<void>}
+   */
+  deleteConversation: async (conversationId) => {
+    try {
+      await api.delete(`/agents/conversations/${conversationId}`);
+    } catch (e) {
+      console.error('Delete conversation error:', e);
+      if (DEV_MODE && BYPASS_AUTH) return;
+      throw e;
+    }
+  },
+
+  /**
+   * Subscribe to conversation updates (real-time)
+   * Note: This is a simplified version using polling. For real-time, use WebSockets or SSE.
+   * @param {string} conversationId - Conversation ID
+   * @param {Function} callback - Callback function to receive updates
+   * @returns {Function} Unsubscribe function
+   */
+  subscribeToConversation: (conversationId, callback) => {
+    let isSubscribed = true;
+    let pollInterval = null;
+
+    const poll = async () => {
+      if (!isSubscribed) return;
+      
+      try {
+        const conversation = await agents.getConversation(conversationId);
+        if (conversation && isSubscribed) {
+          callback(conversation);
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    };
+
+    // Poll every 2 seconds
+    pollInterval = setInterval(poll, 2000);
+    poll(); // Initial poll
+
+    // Return unsubscribe function
+    return () => {
+      isSubscribed = false;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }
+};
+
 export { api };
 
 export default {
@@ -575,5 +732,6 @@ export default {
   social,
   functions,
   entities,
+  agents,
   api
 };

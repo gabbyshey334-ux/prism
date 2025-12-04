@@ -310,6 +310,7 @@ try {
   app.use('/api/cesdk', require('./routes/cesdk'));
   app.use('/api/posts', require('./routes/posting'));
   app.use('/api/webhooks', require('./routes/webhooks'));
+  app.use('/api/agents', require('./routes/agents'));
   
   // Legacy OAuth route (for backward compatibility)
   app.use('/api/oauth-legacy', require('./routes/oauth'));
