@@ -768,9 +768,9 @@ function UploadModal({ onClose, onUpload, brands, selectedBrand, uploadingFiles,
       <DialogContent 
         className="max-w-2xl" 
         style={{
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '2px solid rgba(229, 165, 116, 0.3)'
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+        backdropFilter: 'blur(20px)',
+        border: '2px solid rgba(229, 165, 116, 0.3)'
         }}
         aria-labelledby="upload-files-title"
         aria-describedby="upload-files-description"
@@ -948,9 +948,9 @@ function FileViewerModal({ file, onClose }) {
       <DialogContent 
         className="max-w-5xl max-h-[95vh]" 
         style={{
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '2px solid rgba(229, 165, 116, 0.3)'
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+        backdropFilter: 'blur(20px)',
+        border: '2px solid rgba(229, 165, 116, 0.3)'
         }}
         aria-labelledby="file-details-title"
         aria-describedby="file-details-description"

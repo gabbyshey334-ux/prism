@@ -568,9 +568,9 @@ function ContentCreationWorkflowModal({ idea, onAddToIdeas, onClose }) {
       <DialogContent 
         className="max-w-md" 
         style={{
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(229, 165, 116, 0.3)'
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(229, 165, 116, 0.3)'
         }}
         aria-labelledby="idea-action-title"
         aria-describedby="idea-action-description"

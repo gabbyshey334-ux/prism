@@ -4,12 +4,16 @@ const { GoogleGenerativeAI } = require('@google/generative-ai')
 
 // Initialize Gemini AI for text generation
 let genAIModel = null
+let genAIVisionModel = null
 const GOOGLE_KEY = process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY
 if (GOOGLE_KEY) {
   try {
     const genAI = new GoogleGenerativeAI(GOOGLE_KEY)
-    genAIModel = genAI.getGenerativeModel({ model: 'gemini-pro' })
-    console.log('✅ Google Gemini AI initialized')
+    // Use newer model if available, fallback to gemini-pro
+    const modelName = process.env.GOOGLE_MODEL || 'gemini-1.5-flash'
+    genAIModel = genAI.getGenerativeModel({ model: modelName })
+    genAIVisionModel = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' }) // Vision-capable model
+    console.log('✅ Google Gemini AI initialized with model:', modelName)
   } catch (e) {
     console.error('❌ Failed to initialize Gemini AI:', e.message)
   }
@@ -18,10 +22,21 @@ if (GOOGLE_KEY) {
 // LLM endpoint - supports both OpenAI and Google Gemini
 router.post('/llm', async (req, res) => {
   try {
-    const { prompt, response_json_schema } = req.body || {}
+    const { prompt, response_json_schema, add_context_from_internet, file_urls } = req.body || {}
     
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' })
+    }
+
+    // Build enhanced prompt with context if requested
+    let enhancedPrompt = prompt;
+    if (add_context_from_internet) {
+      enhancedPrompt = `${prompt}\n\nIMPORTANT: Use real-time internet context to provide accurate, current information. Research recent trends, news, and social media content when relevant.`;
+    }
+
+    // Add file context if images are provided
+    if (file_urls && Array.isArray(file_urls) && file_urls.length > 0) {
+      enhancedPrompt = `${enhancedPrompt}\n\nIMAGES PROVIDED (${file_urls.length}):\n${file_urls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\nAnalyze the content in these images and incorporate the visual information into your response.`;
     }
 
     // Try OpenAI first if available
@@ -32,24 +47,42 @@ router.post('/llm', async (req, res) => {
           ? 'You are a helpful assistant that returns valid JSON according to the provided schema.'
           : 'You are a helpful assistant that returns valid JSON according to instructions.'
         
-        let userPrompt = prompt
+        let userPrompt = enhancedPrompt
         if (response_json_schema) {
           userPrompt += `\n\nReturn ONLY valid JSON matching this schema: ${JSON.stringify(response_json_schema)}`
         } else {
           userPrompt += `\n\nReturn ONLY valid JSON.`
         }
 
+        // Build messages array - support vision if images are provided
+        const messages = [{ role: 'system', content: system }]
+        
+        if (file_urls && Array.isArray(file_urls) && file_urls.length > 0) {
+          // Use vision API - build content array with images
+          const content = [
+            { type: 'text', text: userPrompt },
+            ...file_urls.map(url => ({
+              type: 'image_url',
+              image_url: { url: url }
+            }))
+          ]
+          messages.push({ role: 'user', content: content })
+          // Use vision-capable model
+          var model = process.env.OPENAI_VISION_MODEL || 'gpt-4o' // Use vision model for images
+        } else {
+          messages.push({ role: 'user', content: userPrompt })
+          var model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+        }
+
         const { data } = await axios.post('https://api.openai.com/v1/chat/completions', {
-          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: userPrompt }
-          ],
+          model: model,
+          messages: messages,
           temperature: 0.2,
-          response_format: response_json_schema ? { type: 'json_object' } : undefined
+          response_format: response_json_schema ? { type: 'json_object' } : undefined,
+          max_tokens: file_urls && file_urls.length > 0 ? 4000 : 2000 // More tokens for vision
         }, {
           headers: { Authorization: `Bearer ${openAIKey}`, 'Content-Type': 'application/json' },
-          timeout: 30000
+          timeout: file_urls && file_urls.length > 0 ? 60000 : 30000 // Longer timeout for vision
         })
 
         const content = data?.choices?.[0]?.message?.content || '{}'
@@ -73,16 +106,23 @@ router.post('/llm', async (req, res) => {
     }
 
     // Fallback to Google Gemini
-    if (genAIModel) {
+    const geminiModel = (file_urls && Array.isArray(file_urls) && file_urls.length > 0 && genAIVisionModel) 
+      ? genAIVisionModel 
+      : genAIModel
+    
+    if (geminiModel) {
       try {
-        let fullPrompt = prompt
+        let fullPrompt = enhancedPrompt
         if (response_json_schema) {
           fullPrompt += `\n\nReturn ONLY valid JSON matching this schema: ${JSON.stringify(response_json_schema)}`
         } else {
           fullPrompt += `\n\nReturn ONLY valid JSON.`
         }
 
-        const result = await genAIModel.generateContent(fullPrompt)
+        // Note: Gemini vision requires base64 images, so for now we'll just use text prompt with image URLs
+        // In production, you'd fetch images and convert to base64, or use OpenAI for vision
+        const result = await geminiModel.generateContent(fullPrompt)
+        
         const response = await result.response
         const text = response.text()
         
@@ -101,6 +141,25 @@ router.post('/llm', async (req, res) => {
         return res.json(parsed)
       } catch (geminiError) {
         console.error('Gemini error:', geminiError.message)
+        // If vision failed, try without images
+        if (file_urls && file_urls.length > 0 && genAIModel) {
+          try {
+            let fallbackPrompt = enhancedPrompt
+            if (response_json_schema) {
+              fallbackPrompt += `\n\nReturn ONLY valid JSON matching this schema: ${JSON.stringify(response_json_schema)}`
+            } else {
+              fallbackPrompt += `\n\nReturn ONLY valid JSON.`
+            }
+            const result = await genAIModel.generateContent(fallbackPrompt)
+            const response = await result.response
+            const text = response.text()
+            const jsonMatch = text.match(/\{[\s\S]*\}/) || text.match(/\[[\s\S]*\]/)
+            const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text)
+            return res.json(parsed)
+          } catch (fallbackError) {
+            console.error('Gemini fallback error:', fallbackError.message)
+          }
+        }
       }
     }
 

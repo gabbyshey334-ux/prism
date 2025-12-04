@@ -166,76 +166,76 @@ Prism is a comprehensive social media management platform that leverages artific
 ### Installation
 
 1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd prism
-   ```
+```bash
+git clone <repository-url>
+cd prism
+```
 
 2. **Install dependencies**
-   ```bash
+```bash
    # Frontend
-   npm install
-   
+npm install
+
    # Backend
-   cd backend
-   npm install
-   ```
+cd backend
+npm install
+```
 
 3. **Set up environment variables**
-   
+
    Create `.env` in the root:
-   ```env
-   VITE_API_BASE_URL=http://localhost:4000/api
-   ```
-   
-   Create `backend/.env`:
-   ```env
-   NODE_ENV=development
-   PORT=4000
-   FRONTEND_URL=http://localhost:5173
-   FRONTEND_URLS=http://localhost:5173,http://localhost:3000
-   
-   # Database
-   SUPABASE_URL=your-supabase-url
-   SUPABASE_ANON_KEY=your-anon-key
-   SUPABASE_SERVICE_KEY=your-service-role-key
-   
-   # Redis
-   REDIS_HOST=localhost
-   REDIS_PORT=6379
-   
-   # Firebase
-   FIREBASE_PROJECT_ID=your-project-id
-   FIREBASE_CLIENT_EMAIL=your-client-email
-   FIREBASE_PRIVATE_KEY=your-private-key
-   
-   # AI Services
-   OPENAI_API_KEY=your-openai-api-key
-   ANTHROPIC_API_KEY=your-anthropic-api-key
+```env
+VITE_API_BASE_URL=http://localhost:4000/api
+```
+
+Create `backend/.env`:
+```env
+NODE_ENV=development
+PORT=4000
+FRONTEND_URL=http://localhost:5173
+FRONTEND_URLS=http://localhost:5173,http://localhost:3000
+
+# Database
+SUPABASE_URL=your-supabase-url
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_KEY=your-service-role-key
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# Firebase
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=your-client-email
+FIREBASE_PRIVATE_KEY=your-private-key
+
+# AI Services
+OPENAI_API_KEY=your-openai-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
    
    # Social Media APIs (see Configuration section)
    # ... add your platform credentials
-   ```
+```
 
 4. **Set up database**
-   ```bash
-   cd backend
-   npm run migrate
-   ```
+```bash
+cd backend
+npm run migrate
+```
 
 5. **Start development servers**
-   ```bash
+```bash
    # Terminal 1: Frontend
-   npm run dev
-   
+npm run dev
+
    # Terminal 2: Backend
    cd backend
-   npm run dev
-   
+npm run dev
+
    # Terminal 3: Workers
    cd backend
-   npm run worker:dev
-   ```
+npm run worker:dev
+```
 
 Visit `http://localhost:5173` to see the application.
 
@@ -270,6 +270,9 @@ Visit `http://localhost:5173` to see the application.
 - `OPENAI_IMAGE_MODEL`: Image model (default: `dall-e-3`)
 - `ANTHROPIC_API_KEY`: Anthropic API key
 - `ANTHROPIC_MODEL`: Model to use (default: `claude-3-5-sonnet-20241022`)
+
+#### CreativeEditor SDK (CE.SDK)
+- `CESDK_LICENSE_KEY`: CreativeEditor SDK license key (required for visual editor functionality)
 
 #### Social Media Platforms
 

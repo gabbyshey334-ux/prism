@@ -524,10 +524,17 @@ export const integrations = {
         }
       };
     },
-    InvokeLLM: async ({ prompt, response_json_schema }) => {
+    InvokeLLM: async ({ prompt, response_json_schema, add_context_from_internet, file_urls }) => {
       try {
-        const res = await api.post('/integrations/llm', { prompt, response_json_schema });
-        console.log('LLM API response:', res.status, res.data ? 'Data received' : 'No data');
+        const res = await api.post('/integrations/llm', { 
+          prompt, 
+          response_json_schema,
+          add_context_from_internet,
+          file_urls
+        });
+        if (DEV_MODE) {
+          console.log('LLM API response:', res.status, res.data ? 'Data received' : 'No data');
+        }
         if (!res.data) {
           console.warn('LLM API returned empty response');
           return { error: 'Empty response from LLM API' };

@@ -853,9 +853,9 @@ export default function Library() {
         <Dialog open={showDuplicateConfirmDialog} onOpenChange={setShowDuplicateConfirmDialog}>
           <DialogContent 
             style={{
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(229, 165, 116, 0.3)'
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(229, 165, 116, 0.3)'
             }}
             aria-labelledby="duplicate-content-title"
             aria-describedby="duplicate-content-description"
@@ -945,9 +945,9 @@ function UploadContentModal({ onClose, brands }) {
       <DialogContent 
         className="max-w-2xl" 
         style={{
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(229, 165, 116, 0.3)'
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 252, 240, 0.95) 100%)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(229, 165, 116, 0.3)'
         }}
         aria-labelledby="upload-content-title"
         aria-describedby="upload-content-description"

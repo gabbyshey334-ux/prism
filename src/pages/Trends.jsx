@@ -332,10 +332,10 @@ export default function Trends() {
       // Use the new LLM research endpoint via API client
       console.log('Researching trends with brand context:', brandContext);
       const result = await api.post('/trending_topics/research', {
-        brand_context: brandContext,
-        niche: niche,
-        content_type: 'social media',
-        count: 10
+          brand_context: brandContext,
+          niche: niche,
+          content_type: 'social media',
+          count: 10
       }).then(res => res.data).catch(error => {
         console.error('Research API error:', error.response?.status, error.response?.data || error.message);
         throw new Error(`Research failed: ${error.response?.statusText || error.message}`);

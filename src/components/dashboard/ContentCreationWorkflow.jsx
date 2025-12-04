@@ -532,29 +532,29 @@ Also provide a main caption for the post that tells a compelling story with emot
           const tweetCount = options.tweet_count || 5;
           prompt += `\nCreate exactly ${tweetCount} tweets for a thread. Each tweet should be engaging and within 280 characters. Also provide 5-10 relevant hashtags (WITHOUT # prefix).`;
 
-            const response = await prism.integrations.Core.InvokeLLM({
-              prompt,
-              response_json_schema: {
-                type: "object",
-                properties: {
-                  tweets: {
-                    type: "array",
-                    minItems: tweetCount,
-                    maxItems: tweetCount,
-                    items: { type: "string" }
-                  },
-                  hashtags: { type: "array", items: { type: "string" }, description: "Hashtags WITHOUT # prefix" }
+          const response = await prism.integrations.Core.InvokeLLM({
+            prompt,
+            response_json_schema: {
+              type: "object",
+              properties: {
+                tweets: {
+                  type: "array",
+                  minItems: tweetCount,
+                  maxItems: tweetCount,
+                  items: { type: "string" }
                 },
-                required: ["tweets", "hashtags"]
-              }
-            });
+                hashtags: { type: "array", items: { type: "string" }, description: "Hashtags WITHOUT # prefix" }
+              },
+              required: ["tweets", "hashtags"]
+            }
+          });
 
             if (!response || (response.error && !response.tweets)) {
               console.error('Invalid LLM response for thread:', response);
               throw new Error(`Failed to generate thread content: ${response?.error || 'Invalid response'}`);
             }
 
-            generated[formatId] = response;
+          generated[formatId] = response;
         } else if (template && template.placeholders && template.placeholders.length > 0) {
           // Single content with template
           prompt += `\nGenerate content for ONLY these fields: ${template.placeholders.filter(p => p.type === 'text').map(p => p.label).join(', ')}.

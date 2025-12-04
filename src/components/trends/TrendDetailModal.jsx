@@ -47,9 +47,9 @@ export default function TrendDetailModal({ trend, onClose, onCreateContent, onSa
       <DialogContent 
         className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl p-6" 
         style={{
-          backgroundColor: 'white',
-          border: '2px solid rgba(125, 90, 74, 0.2)',
-          boxShadow: '0 20px 50px rgba(125, 90, 74, 0.15)'
+        backgroundColor: 'white',
+        border: '2px solid rgba(125, 90, 74, 0.2)',
+        boxShadow: '0 20px 50px rgba(125, 90, 74, 0.15)'
         }}
         aria-labelledby="trend-detail-title"
         aria-describedby="trend-detail-description"

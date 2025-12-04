@@ -39,9 +39,9 @@ export default function IdeaDetailModal({ idea, brands, onClose, onOpenWorkflow 
       <DialogContent 
         className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl" 
         style={{
-          backgroundColor: 'white',
-          border: '2px solid rgba(125, 90, 74, 0.2)',
-          boxShadow: '0 20px 50px rgba(125, 90, 74, 0.15)'
+        backgroundColor: 'white',
+        border: '2px solid rgba(125, 90, 74, 0.2)',
+        boxShadow: '0 20px 50px rgba(125, 90, 74, 0.15)'
         }}
         aria-labelledby="idea-detail-title"
         aria-describedby="idea-detail-description"
