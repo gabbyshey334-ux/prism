@@ -954,9 +954,9 @@ function UploadContentModal({ onClose, brands }) {
       >
         <DialogHeader>
           <DialogTitle id="upload-content-title" style={{ color: 'var(--text)' }}>Upload Content</DialogTitle>
-          <div id="upload-content-description" className="sr-only">
+          <DialogDescription id="upload-content-description" className="sr-only">
             Upload a file and add it to your content library. Provide a title and optional description for the uploaded content.
-          </div>
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 mt-4">
           <div>

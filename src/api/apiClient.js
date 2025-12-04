@@ -541,7 +541,20 @@ export const integrations = {
         }
         return res.data;
       } catch (e) {
-        console.error('InvokeLLM error:', e.response?.data || e.message);
+        const errorData = e.response?.data || {};
+        const errorMessage = errorData.message || e.message;
+        
+        // Provide helpful error message for missing API keys
+        if (errorData.error === 'AI service unavailable' || errorMessage.includes('not configured')) {
+          console.error('❌ AI Service Error:', errorMessage);
+          console.error('💡 Solution: Add OPENAI_API_KEY or GOOGLE_API_KEY to DigitalOcean environment variables');
+          console.error('   See AI_API_KEYS_SETUP.md for detailed instructions');
+          
+          // Return a user-friendly error
+          throw new Error('AI service is not configured. Please contact support or check AI_API_KEYS_SETUP.md for setup instructions.');
+        }
+        
+        console.error('InvokeLLM error:', errorData || e.message);
         throw e; // Re-throw to let caller handle the error
       }
     },

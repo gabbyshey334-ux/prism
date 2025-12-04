@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sparkles, TrendingUp, Flame, Calendar, ExternalLink, Hash, Lightbulb } from "lucide-react";
@@ -50,9 +50,9 @@ export default function IdeaDetailModal({ idea, brands, onClose, onOpenWorkflow 
           <DialogTitle id="idea-detail-title" className="text-3xl font-bold pr-8 leading-tight" style={{ color: '#2D2416' }}>
             {idea.ai_generated_title || idea.original_input}
           </DialogTitle>
-          <div id="idea-detail-description" className="sr-only">
+          <DialogDescription id="idea-detail-description" className="sr-only">
             Detailed view of this content idea. View all information, research data, and options to generate content or manage the idea.
-          </div>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 mt-6">

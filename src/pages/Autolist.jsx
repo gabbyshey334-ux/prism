@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Play, Pause, Plus, Trash2, GripVertical, Settings as SettingsIcon } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 const platformIcons = {
@@ -384,9 +384,9 @@ function AutolistSettingsModal({ settings, onClose, onSave }) {
       >
         <DialogHeader>
           <DialogTitle id="autolist-schedule-title">Autolist Schedule Settings</DialogTitle>
-          <div id="autolist-schedule-description" className="sr-only">
+          <DialogDescription id="autolist-schedule-description" className="sr-only">
             Configure your autolist posting schedule. Set up time slots for each day of the week and enable loop mode to automatically restart from the beginning.
-          </div>
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-6 mt-4">
           <div className="flex items-center justify-between p-4 rounded-xl"

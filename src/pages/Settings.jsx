@@ -96,8 +96,8 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen p-6 md:p-8" style={{ backgroundColor: 'var(--background)' }}>
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen p-6 md:p-8 pb-24 relative" style={{ backgroundColor: 'var(--background)', zIndex: 1 }}>
+      <div className="max-w-4xl mx-auto relative" style={{ zIndex: 1 }}>
         <h1 className="text-3xl md:text-4xl font-bold mb-2" style={{ color: 'var(--text)' }}>
           Settings
         </h1>
@@ -172,7 +172,7 @@ export default function Settings() {
                 </Button>
 
                 {/* Logout Section */}
-                <div className="pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
+                <div className="pt-6 border-t relative" style={{ borderColor: 'var(--border)', zIndex: 10 }}>
                   <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text)' }}>
                     Account Actions
                   </h3>
@@ -182,8 +182,12 @@ export default function Settings() {
                   <Button
                     onClick={handleLogout}
                     variant="outline"
-                    className="w-full rounded-xl h-12 border-2 text-red-600 hover:bg-red-50 hover:border-red-300"
-                    style={{ borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                    className="w-full rounded-xl h-12 border-2 text-red-600 hover:bg-red-50 hover:border-red-300 relative"
+                    style={{ 
+                      borderColor: 'rgba(239, 68, 68, 0.3)',
+                      zIndex: 20,
+                      position: 'relative'
+                    }}
                   >
                     Logout
                   </Button>

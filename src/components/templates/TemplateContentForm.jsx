@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -86,9 +86,9 @@ export default function TemplateContentForm({ template, onGenerate, onClose }) {
           <DialogTitle id="fill-template-title" className="text-2xl font-bold" style={{ color: '#3D3D2B' }}>
             Fill Template: {template.name}
           </DialogTitle>
-          <div id="fill-template-description" className="text-sm" style={{ color: '#8B7355' }}>
+          <DialogDescription id="fill-template-description" className="text-sm" style={{ color: '#8B7355' }}>
             Enter your content and we'll automatically apply it to the template
-          </div>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 mt-6">

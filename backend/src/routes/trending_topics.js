@@ -20,16 +20,29 @@ if (GOOGLE_KEY) {
   console.warn('⚠️ GOOGLE_API_KEY not set - trend generation will use fallback')
 }
 
-// Schema validation for trend data
+// Schema validation for trend data - matches database schema
 const trendSchema = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().min(1).max(1000),
-  category: z.string().min(1).max(50),
+  title: z.string().min(1).max(200).optional(),
+  topic: z.string().min(1).max(200).optional(), // Legacy field, map to title
+  description: z.string().min(1).max(5000).optional(),
+  category: z.string().min(1).max(50).optional(),
   relevance_score: z.number().min(0).max(100).optional(),
+  viral_potential: z.number().min(0).max(10).optional(),
   brand_context: z.string().max(500).optional(),
-  content_ideas: z.array(z.string()).max(10).optional(),
-  hashtags: z.array(z.string()).max(20).optional(),
-  keywords: z.array(z.string()).max(10).optional(),
+  brand_relevance: z.string().max(2000).optional(),
+  source: z.string().max(100).optional(),
+  source_url: z.string().url().optional().or(z.string().max(500)),
+  source_date: z.string().datetime().optional(),
+  trending_data: z.string().max(10000).optional(),
+  keywords: z.array(z.string()).max(50).optional(),
+  hashtags: z.array(z.string()).max(50).optional(),
+  duration_estimate: z.string().max(100).optional(),
+  expires_at: z.string().datetime().optional(),
+  brand_id: z.string().uuid().optional(),
+  user_id: z.string().optional(),
+  platform: z.string().max(50).optional(),
+  used: z.boolean().optional(),
+  hidden: z.boolean().optional(),
   is_hidden: z.boolean().optional(),
   metadata: z.object({}).optional()
 })
@@ -204,6 +217,11 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
+    // Map legacy 'topic' to 'title' if needed
+    if (req.body.topic && !req.body.title) {
+      req.body.title = req.body.topic
+    }
+    
     // Validate input data
     const validationResult = trendSchema.safeParse(req.body)
     if (!validationResult.success) {
@@ -216,9 +234,41 @@ router.post('/', async (req, res) => {
       })
     }
 
+    // Prepare data for insertion - only include fields that exist in schema
+    const trendData = {
+      title: validationResult.data.title || validationResult.data.topic,
+      description: validationResult.data.description,
+      category: validationResult.data.category,
+      relevance_score: validationResult.data.relevance_score || 0,
+      viral_potential: validationResult.data.viral_potential || 0,
+      brand_context: validationResult.data.brand_context,
+      brand_relevance: validationResult.data.brand_relevance,
+      source: validationResult.data.source,
+      source_url: validationResult.data.source_url,
+      source_date: validationResult.data.source_date,
+      trending_data: validationResult.data.trending_data,
+      keywords: validationResult.data.keywords || [],
+      hashtags: validationResult.data.hashtags || [],
+      duration_estimate: validationResult.data.duration_estimate,
+      expires_at: validationResult.data.expires_at,
+      brand_id: validationResult.data.brand_id,
+      user_id: validationResult.data.user_id,
+      platform: validationResult.data.platform,
+      used: validationResult.data.used || false,
+      hidden: validationResult.data.hidden || false,
+      is_hidden: validationResult.data.is_hidden || false
+    }
+    
+    // Remove null/undefined values
+    Object.keys(trendData).forEach(key => {
+      if (trendData[key] === null || trendData[key] === undefined) {
+        delete trendData[key]
+      }
+    })
+
     const { data, error } = await supabaseAdmin
       .from('trending_topics')
-      .insert(validationResult.data)
+      .insert(trendData)
       .select('*')
       .single()
 
@@ -459,17 +509,57 @@ router.post('/bulk', async (req, res) => {
       })
     }
 
-    // Validate each trend
+    // Validate and normalize each trend
     const validatedTrends = []
     for (const trend of trends) {
+      // Map legacy 'topic' to 'title' if needed
+      if (trend.topic && !trend.title) {
+        trend.title = trend.topic
+      }
+      
       const validationResult = trendSchema.safeParse(trend)
       if (!validationResult.success) {
+        console.error('Trend validation error:', validationResult.error.errors)
         return res.status(400).json({
           error: 'validation_failed',
-          message: `Invalid trend data: ${validationResult.error.errors[0]?.message || 'Unknown validation error'}`
+          message: `Invalid trend data: ${validationResult.error.errors[0]?.message || 'Unknown validation error'}`,
+          details: validationResult.error.errors
         })
       }
-      validatedTrends.push(validationResult.data)
+      
+      // Prepare data for insertion - only include fields that exist in schema
+      const trendData = {
+        title: validationResult.data.title || validationResult.data.topic,
+        description: validationResult.data.description,
+        category: validationResult.data.category,
+        relevance_score: validationResult.data.relevance_score || 0,
+        viral_potential: validationResult.data.viral_potential || 0,
+        brand_context: validationResult.data.brand_context,
+        brand_relevance: validationResult.data.brand_relevance,
+        source: validationResult.data.source,
+        source_url: validationResult.data.source_url,
+        source_date: validationResult.data.source_date,
+        trending_data: validationResult.data.trending_data,
+        keywords: validationResult.data.keywords || [],
+        hashtags: validationResult.data.hashtags || [],
+        duration_estimate: validationResult.data.duration_estimate,
+        expires_at: validationResult.data.expires_at,
+        brand_id: validationResult.data.brand_id,
+        user_id: validationResult.data.user_id,
+        platform: validationResult.data.platform,
+        used: validationResult.data.used || false,
+        hidden: validationResult.data.hidden || false,
+        is_hidden: validationResult.data.is_hidden || false
+      }
+      
+      // Remove null/undefined values
+      Object.keys(trendData).forEach(key => {
+        if (trendData[key] === null || trendData[key] === undefined) {
+          delete trendData[key]
+        }
+      })
+      
+      validatedTrends.push(trendData)
     }
 
     const { data, error } = await supabaseAdmin

@@ -6,6 +6,17 @@ const { GoogleGenerativeAI } = require('@google/generative-ai')
 let genAIModel = null
 let genAIVisionModel = null
 const GOOGLE_KEY = process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY
+const OPENAI_KEY = process.env.OPENAI_API_KEY
+
+// Log AI service availability on startup
+console.log('🤖 AI Service Configuration:')
+console.log('  OpenAI:', OPENAI_KEY ? '✅ Configured' : '❌ Not configured')
+console.log('  Google Gemini:', GOOGLE_KEY ? '✅ Configured' : '❌ Not configured')
+if (!OPENAI_KEY && !GOOGLE_KEY) {
+  console.error('⚠️  WARNING: No AI service configured! Add OPENAI_API_KEY or GOOGLE_API_KEY to environment variables.')
+  console.error('   See AI_API_KEYS_SETUP.md for setup instructions.')
+}
+
 if (GOOGLE_KEY) {
   try {
     const genAI = new GoogleGenerativeAI(GOOGLE_KEY)
@@ -163,10 +174,15 @@ router.post('/llm', async (req, res) => {
       }
     }
 
-    // If both fail, return error
+    // If both fail, return error with helpful message
     return res.status(500).json({ 
       error: 'AI service unavailable',
-      message: 'Neither OpenAI nor Google Gemini API is configured or available'
+      message: 'Neither OpenAI nor Google Gemini API is configured or available',
+      help: 'Please add OPENAI_API_KEY or GOOGLE_API_KEY to your environment variables in DigitalOcean. See AI_API_KEYS_SETUP.md for instructions.',
+      configured: {
+        openai: !!process.env.OPENAI_API_KEY,
+        google: !!(process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY)
+      }
     })
   } catch (e) {
     console.error('LLM endpoint error:', e)

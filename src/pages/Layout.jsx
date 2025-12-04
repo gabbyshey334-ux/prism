@@ -466,8 +466,8 @@ export default function Layout({ children, currentPageName }) {
               </div>
             </SidebarFooter>
           </Sidebar>
-          <div className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto">
+          <div className="flex-1 p-4 md:p-6 lg:p-8 relative" style={{ zIndex: 1 }}>
+            <div className="max-w-7xl mx-auto relative" style={{ zIndex: 1 }}>
               {children}
             </div>
           </div>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Lightbulb, TrendingUp, Flame, Calendar, ExternalLink, Hash } from "lucide-react";
@@ -58,9 +58,9 @@ export default function TrendDetailModal({ trend, onClose, onCreateContent, onSa
           <DialogTitle id="trend-detail-title" className="text-3xl font-bold pr-8 leading-tight" style={{ color: '#2D2416' }}>
             {trend.title}
           </DialogTitle>
-          <div id="trend-detail-description" className="sr-only">
+          <DialogDescription id="trend-detail-description" className="sr-only">
             Detailed information about this trending topic. View description, research data, and options to save as content idea or create content.
-          </div>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 mt-6">

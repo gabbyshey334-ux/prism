@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Settings, Palette, Link as LinkIcon, Loader2, ArrowLeft, MoreVertical, Edit2, Rss, Search, Trash2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -602,9 +602,9 @@ export default function BrandsPage() {
           >
             <DialogHeader>
               <DialogTitle id="create-brand-title">Create New Brand</DialogTitle>
-              <div id="create-brand-description" className="sr-only">
+              <DialogDescription id="create-brand-description" className="sr-only">
                 Create a new brand profile. Enter the brand name, description, website URL, and primary color to get started.
-              </div>
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 mt-4">
               <div>

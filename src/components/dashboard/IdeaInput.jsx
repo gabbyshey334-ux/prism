@@ -12,7 +12,7 @@ import {
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 // New: For the workflow modal
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 // Dummy ContentCreationWorkflow component (for a functional file, replace with actual implementation)
 const ContentCreationWorkflow = ({ initialIdea, onClose, onComplete, skipToGeneration }) => {
@@ -577,9 +577,9 @@ function ContentCreationWorkflowModal({ idea, onAddToIdeas, onClose }) {
       >
         <DialogHeader>
           <DialogTitle id="idea-action-title" style={{ color: '#3D3D2B' }}>What would you like to do?</DialogTitle>
-          <div id="idea-action-description" className="sr-only">
+          <DialogDescription id="idea-action-description" className="sr-only">
             Choose how to process your content idea. You can create content immediately using the workflow, or save it to your ideas list for later development.
-          </div>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-6">

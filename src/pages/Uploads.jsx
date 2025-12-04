@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { 
   Search, Trash2, Image as ImageIcon, Video, FileText, 
@@ -779,9 +779,9 @@ function UploadModal({ onClose, onUpload, brands, selectedBrand, uploadingFiles,
           <DialogTitle id="upload-files-title" className="text-2xl font-bold" style={{ color: '#3D3D2B' }}>
             Upload Files
           </DialogTitle>
-          <div id="upload-files-description" className="sr-only">
+          <DialogDescription id="upload-files-description" className="sr-only">
             Upload files to your media library. Supported formats include images, videos, PDFs, and documents.
-          </div>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 mt-6">
@@ -960,9 +960,9 @@ function FileViewerModal({ file, onClose }) {
             <DialogTitle id="file-details-title" className="text-xl font-bold" style={{ color: '#3D3D2B' }}>
               {file.ai_generated_title || file.original_input}
             </DialogTitle>
-            <div id="file-details-description" className="sr-only">
+            <DialogDescription id="file-details-description" className="sr-only">
               View and manage file details, metadata, and options for this uploaded file.
-            </div>
+            </DialogDescription>
             <Button
               variant="ghost"
               size="icon"
