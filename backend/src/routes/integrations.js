@@ -179,6 +179,33 @@ router.post('/llm', async (req, res) => {
     // ========================================
     // FALLBACK TO GOOGLE GEMINI
     // ========================================
+    // Helper function to fetch image and convert to base64
+    const fetchImageAsBase64 = async (imageUrl) => {
+      try {
+        const response = await axios.get(imageUrl, {
+          responseType: 'arraybuffer',
+          timeout: 30000
+        })
+        const buffer = Buffer.from(response.data)
+        const base64 = buffer.toString('base64')
+        // Determine MIME type from URL or response headers
+        const contentType = response.headers['content-type'] || 
+                           (imageUrl.match(/\.(jpg|jpeg)$/i) ? 'image/jpeg' :
+                            imageUrl.match(/\.png$/i) ? 'image/png' :
+                            imageUrl.match(/\.gif$/i) ? 'image/gif' :
+                            imageUrl.match(/\.webp$/i) ? 'image/webp' : 'image/jpeg')
+        return {
+          inlineData: {
+            data: base64,
+            mimeType: contentType
+          }
+        }
+      } catch (error) {
+        console.error(`❌ Failed to fetch image ${imageUrl}:`, error.message)
+        throw error
+      }
+    }
+    
     const geminiModel = (file_urls && Array.isArray(file_urls) && file_urls.length > 0 && genAIVisionModel) 
       ? genAIVisionModel 
       : genAIModel
@@ -193,9 +220,33 @@ router.post('/llm', async (req, res) => {
           fullPrompt += `\n\nReturn ONLY valid JSON.`
         }
 
-        // Note: Gemini vision requires base64 images, so for now we'll just use text prompt with image URLs
-        // In production, you'd fetch images and convert to base64, or use OpenAI for vision
-        const result = await geminiModel.generateContent(fullPrompt)
+        // Build content array for Gemini - support vision if images are provided
+        let content
+        if (file_urls && Array.isArray(file_urls) && file_urls.length > 0 && genAIVisionModel) {
+          console.log('🔵 Using Gemini Vision for image analysis')
+          // Fetch images and convert to base64
+          const imageParts = []
+          for (const url of file_urls) {
+            try {
+              const imagePart = await fetchImageAsBase64(url)
+              imageParts.push(imagePart)
+            } catch (error) {
+              console.warn(`⚠️  Skipping image ${url} due to fetch error:`, error.message)
+            }
+          }
+          
+          if (imageParts.length === 0) {
+            throw new Error('Failed to fetch any images for vision analysis')
+          }
+          
+          // Gemini vision format: array with text and image parts
+          content = [fullPrompt, ...imageParts]
+        } else {
+          // Text-only prompt
+          content = fullPrompt
+        }
+        
+        const result = await geminiModel.generateContent(content)
         
         const response = await result.response
         const text = response.text()

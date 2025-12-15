@@ -553,9 +553,14 @@ export const integrations = {
           return integrations.Core.InvokeLLM({ prompt, response_json_schema, add_context_from_internet, file_urls }, retryCount + 1);
         }
         
-        // Provide helpful error message for missing API keys
-        if (errorData.error === 'AI service unavailable' || errorMessage.includes('not configured')) {
-          console.error('❌ AI Service Error:', errorMessage);
+        // Check if this is a configuration error vs. service error
+        // Configuration error: message says "not configured" or "not available" AND no fallback was attempted
+        const isConfigError = (errorMessage.includes('not configured') || 
+                               errorMessage.includes('Neither OpenAI nor Google Gemini')) &&
+                              !errorData.fallback_attempted;
+        
+        if (isConfigError) {
+          console.error('❌ AI Service Configuration Error:', errorMessage);
           console.error('💡 Solution: Add OPENAI_API_KEY or GOOGLE_API_KEY to DigitalOcean environment variables');
           console.error('   See AI_API_KEYS_SETUP.md for detailed instructions');
           
@@ -567,6 +572,13 @@ export const integrations = {
         if (status === 429) {
           console.error('❌ Rate limit exceeded after retries');
           throw new Error('AI service is currently busy. The system tried to use an alternative service, but both are rate-limited. Please try again in a few moments.');
+        }
+        
+        // Handle service errors (rate limits, failures, etc.) - these are different from config errors
+        if (errorData.error === 'AI service unavailable' && errorData.fallback_attempted) {
+          // Services are configured but both failed (rate limits, errors, etc.)
+          console.error('❌ AI Service Error (fallback attempted):', errorMessage);
+          throw new Error(errorMessage || 'AI services are temporarily unavailable. Please try again in a moment.');
         }
         
         console.error('InvokeLLM error:', errorData || e.message);
