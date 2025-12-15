@@ -521,7 +521,10 @@ export const integrations = {
         throw new Error(error.response?.data?.message || error.message || 'Failed to upload file');
       }
     },
-    InvokeLLM: async ({ prompt, response_json_schema, add_context_from_internet, file_urls }) => {
+    InvokeLLM: async ({ prompt, response_json_schema, add_context_from_internet, file_urls }, retryCount = 0) => {
+      const maxRetries = 2;
+      const retryableStatuses = [429, 500, 502, 503, 504];
+      
       try {
         const res = await api.post('/integrations/llm', { 
           prompt, 
@@ -540,6 +543,15 @@ export const integrations = {
       } catch (e) {
         const errorData = e.response?.data || {};
         const errorMessage = errorData.message || e.message;
+        const status = e.response?.status;
+        
+        // Retry logic for transient errors
+        if (retryCount < maxRetries && status && retryableStatuses.includes(status)) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
+          console.log(`⏳ Retrying LLM request (attempt ${retryCount + 1}/${maxRetries}) after ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return integrations.Core.InvokeLLM({ prompt, response_json_schema, add_context_from_internet, file_urls }, retryCount + 1);
+        }
         
         // Provide helpful error message for missing API keys
         if (errorData.error === 'AI service unavailable' || errorMessage.includes('not configured')) {
@@ -549,6 +561,12 @@ export const integrations = {
           
           // Return a user-friendly error
           throw new Error('AI service is not configured. Please contact support or check AI_API_KEYS_SETUP.md for setup instructions.');
+        }
+        
+        // Handle rate limit errors with helpful message
+        if (status === 429) {
+          console.error('❌ Rate limit exceeded after retries');
+          throw new Error('AI service is currently busy. The system tried to use an alternative service, but both are rate-limited. Please try again in a few moments.');
         }
         
         console.error('InvokeLLM error:', errorData || e.message);

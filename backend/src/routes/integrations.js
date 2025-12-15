@@ -73,6 +73,9 @@ router.post('/llm', async (req, res) => {
     // ========================================
     // TRY OPENAI FIRST (Preferred)
     // ========================================
+    let openAIFailed = false
+    let openAIErrorReason = null
+    
     if (OPENAI_KEY) {
       console.log('🔵 Attempting OpenAI...')
       try {
@@ -154,24 +157,22 @@ router.post('/llm', async (req, res) => {
           })
         }
         
+        openAIFailed = true
         if (openAIError.response?.status === 429) {
-          console.error('❌ OpenAI rate limit exceeded')
-          return res.status(429).json({
-            error: 'rate_limit_exceeded',
-            message: 'OpenAI API rate limit exceeded. Please try again in a moment.'
-          })
-        }
-        
-        if (openAIError.response?.data?.error?.code === 'insufficient_quota') {
+          console.error('❌ OpenAI rate limit exceeded - falling back to Google Gemini')
+          openAIErrorReason = 'rate_limit'
+          // Don't return immediately - fall through to Gemini fallback
+        } else if (openAIError.response?.data?.error?.code === 'insufficient_quota') {
           console.error('❌ OpenAI quota exceeded')
           return res.status(402).json({
             error: 'quota_exceeded',
             message: 'OpenAI API quota exceeded. Please check your billing at platform.openai.com'
           })
+        } else {
+          console.log('🔵 OpenAI error - falling back to Google Gemini...')
+          openAIErrorReason = 'error'
         }
-        
-        console.log('🔵 Falling back to Google Gemini...')
-        // Fall through to Gemini
+        // Fall through to Gemini for rate limits and other errors
       }
     }
 
@@ -257,10 +258,25 @@ router.post('/llm', async (req, res) => {
     console.error('     process.env.OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET')
     console.error('     process.env.GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? 'SET' : 'NOT SET')
     
+    // Build helpful error message
+    let errorMessage = 'AI service unavailable'
+    if (openAIFailed && OPENAI_KEY && GOOGLE_KEY) {
+      if (openAIErrorReason === 'rate_limit') {
+        errorMessage = 'OpenAI rate limit exceeded and Google Gemini fallback also failed. Please try again in a moment.'
+      } else {
+        errorMessage = 'OpenAI request failed and Google Gemini fallback also failed. Please try again.'
+      }
+    } else if (!OPENAI_KEY && !GOOGLE_KEY) {
+      errorMessage = 'Neither OpenAI nor Google Gemini API is configured or available'
+    } else if (!GOOGLE_KEY && openAIFailed) {
+      errorMessage = 'OpenAI request failed and no fallback service (Google Gemini) is configured'
+    }
+    
     return res.status(500).json({ 
       error: 'AI service unavailable',
-      message: 'Neither OpenAI nor Google Gemini API is configured or available',
+      message: errorMessage,
       help: 'Please add OPENAI_API_KEY or GOOGLE_API_KEY to your environment variables in DigitalOcean. See AI_API_KEYS_SETUP.md for instructions.',
+      fallback_attempted: openAIFailed && !!GOOGLE_KEY,
       debug: {
         openai_configured: !!OPENAI_KEY,
         google_configured: !!GOOGLE_KEY,
