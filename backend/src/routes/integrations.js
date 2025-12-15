@@ -8,13 +8,25 @@ let genAIVisionModel = null
 const GOOGLE_KEY = process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY
 const OPENAI_KEY = process.env.OPENAI_API_KEY
 
-// Log AI service availability on startup
+// Log AI service availability on startup with detailed debugging
 console.log('🤖 AI Service Configuration:')
-console.log('  OpenAI:', OPENAI_KEY ? '✅ Configured' : '❌ Not configured')
-console.log('  Google Gemini:', GOOGLE_KEY ? '✅ Configured' : '❌ Not configured')
+console.log('  OpenAI Key Present:', OPENAI_KEY ? '✅ YES' : '❌ NO')
+console.log('  OpenAI Key Length:', OPENAI_KEY ? OPENAI_KEY.length : 0)
+console.log('  OpenAI Key Preview:', OPENAI_KEY ? `${OPENAI_KEY.substring(0, 7)}...` : 'N/A')
+console.log('  Google Key Present:', GOOGLE_KEY ? '✅ YES' : '❌ NO')
+console.log('  Google Key Length:', GOOGLE_KEY ? GOOGLE_KEY.length : 0)
+console.log('  Google Key Preview:', GOOGLE_KEY ? `${GOOGLE_KEY.substring(0, 7)}...` : 'N/A')
+console.log('  Environment Variables Check:')
+console.log('    process.env.OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET')
+console.log('    process.env.GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? 'SET' : 'NOT SET')
+console.log('    process.env.GOOGLE_AI_API_KEY:', process.env.GOOGLE_AI_API_KEY ? 'SET' : 'NOT SET')
+
 if (!OPENAI_KEY && !GOOGLE_KEY) {
   console.error('⚠️  WARNING: No AI service configured! Add OPENAI_API_KEY or GOOGLE_API_KEY to environment variables.')
   console.error('   See AI_API_KEYS_SETUP.md for setup instructions.')
+  console.error('   Make sure to restart the backend after adding environment variables in DigitalOcean.')
+} else {
+  console.log('✅ At least one AI service is configured')
 }
 
 if (GOOGLE_KEY) {
@@ -35,7 +47,15 @@ router.post('/llm', async (req, res) => {
   try {
     const { prompt, response_json_schema, add_context_from_internet, file_urls } = req.body || {}
     
+    console.log('🔵 LLM Request received:', {
+      promptLength: prompt?.length || 0,
+      hasSchema: !!response_json_schema,
+      needsInternet: !!add_context_from_internet,
+      imageCount: file_urls?.length || 0
+    })
+    
     if (!prompt) {
+      console.error('❌ No prompt provided')
       return res.status(400).json({ error: 'Prompt is required' })
     }
 
@@ -50,9 +70,11 @@ router.post('/llm', async (req, res) => {
       enhancedPrompt = `${enhancedPrompt}\n\nIMAGES PROVIDED (${file_urls.length}):\n${file_urls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\nAnalyze the content in these images and incorporate the visual information into your response.`;
     }
 
-    // Try OpenAI first if available
-    const openAIKey = process.env.OPENAI_API_KEY
-    if (openAIKey) {
+    // ========================================
+    // TRY OPENAI FIRST (Preferred)
+    // ========================================
+    if (OPENAI_KEY) {
+      console.log('🔵 Attempting OpenAI...')
       try {
         const system = response_json_schema 
           ? 'You are a helpful assistant that returns valid JSON according to the provided schema.'
@@ -67,8 +89,10 @@ router.post('/llm', async (req, res) => {
 
         // Build messages array - support vision if images are provided
         const messages = [{ role: 'system', content: system }]
+        let model
         
         if (file_urls && Array.isArray(file_urls) && file_urls.length > 0) {
+          console.log('🔵 Using OpenAI Vision (gpt-4o) for image analysis')
           // Use vision API - build content array with images
           const content = [
             { type: 'text', text: userPrompt },
@@ -78,25 +102,30 @@ router.post('/llm', async (req, res) => {
             }))
           ]
           messages.push({ role: 'user', content: content })
-          // Use vision-capable model
-          var model = process.env.OPENAI_VISION_MODEL || 'gpt-4o' // Use vision model for images
+          model = process.env.OPENAI_VISION_MODEL || 'gpt-4o' // Use vision model for images
         } else {
+          console.log('🔵 Using OpenAI text model (gpt-4o-mini)')
           messages.push({ role: 'user', content: userPrompt })
-          var model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+          model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
         }
 
         const { data } = await axios.post('https://api.openai.com/v1/chat/completions', {
           model: model,
           messages: messages,
-          temperature: 0.2,
+          temperature: 0.7,
           response_format: response_json_schema ? { type: 'json_object' } : undefined,
-          max_tokens: file_urls && file_urls.length > 0 ? 4000 : 2000 // More tokens for vision
+          max_tokens: file_urls && file_urls.length > 0 ? 4000 : 2000
         }, {
-          headers: { Authorization: `Bearer ${openAIKey}`, 'Content-Type': 'application/json' },
-          timeout: file_urls && file_urls.length > 0 ? 60000 : 30000 // Longer timeout for vision
+          headers: { 
+            Authorization: `Bearer ${OPENAI_KEY}`, 
+            'Content-Type': 'application/json' 
+          },
+          timeout: file_urls && file_urls.length > 0 ? 90000 : 45000 // Longer timeout for vision
         })
 
         const content = data?.choices?.[0]?.message?.content || '{}'
+        console.log('✅ OpenAI response received:', content.substring(0, 200))
+        
         let parsed
         try { 
           parsed = JSON.parse(content)
@@ -106,22 +135,55 @@ router.post('/llm', async (req, res) => {
           if (jsonMatch) {
             parsed = JSON.parse(jsonMatch[1] || jsonMatch[0])
           } else {
+            console.warn('⚠️  Failed to parse JSON, returning raw content')
             parsed = { error: 'Failed to parse JSON response', raw: content }
           }
         }
+        
+        console.log('✅ OpenAI request successful')
         return res.json(parsed)
       } catch (openAIError) {
-        console.error('OpenAI error:', openAIError.message)
+        console.error('❌ OpenAI error:', openAIError.response?.data || openAIError.message)
+        
+        // Handle specific OpenAI errors
+        if (openAIError.response?.status === 401) {
+          console.error('❌ OpenAI API key is invalid')
+          return res.status(401).json({
+            error: 'invalid_api_key',
+            message: 'OpenAI API key is invalid. Please check your OPENAI_API_KEY environment variable.'
+          })
+        }
+        
+        if (openAIError.response?.status === 429) {
+          console.error('❌ OpenAI rate limit exceeded')
+          return res.status(429).json({
+            error: 'rate_limit_exceeded',
+            message: 'OpenAI API rate limit exceeded. Please try again in a moment.'
+          })
+        }
+        
+        if (openAIError.response?.data?.error?.code === 'insufficient_quota') {
+          console.error('❌ OpenAI quota exceeded')
+          return res.status(402).json({
+            error: 'quota_exceeded',
+            message: 'OpenAI API quota exceeded. Please check your billing at platform.openai.com'
+          })
+        }
+        
+        console.log('🔵 Falling back to Google Gemini...')
         // Fall through to Gemini
       }
     }
 
-    // Fallback to Google Gemini
+    // ========================================
+    // FALLBACK TO GOOGLE GEMINI
+    // ========================================
     const geminiModel = (file_urls && Array.isArray(file_urls) && file_urls.length > 0 && genAIVisionModel) 
       ? genAIVisionModel 
       : genAIModel
     
     if (geminiModel) {
+      console.log('🔵 Attempting Google Gemini...')
       try {
         let fullPrompt = enhancedPrompt
         if (response_json_schema) {
@@ -137,6 +199,8 @@ router.post('/llm', async (req, res) => {
         const response = await result.response
         const text = response.text()
         
+        console.log('✅ Gemini response received:', text.substring(0, 200))
+        
         let parsed
         try {
           // Try to extract JSON from response
@@ -147,13 +211,18 @@ router.post('/llm', async (req, res) => {
             parsed = JSON.parse(text)
           }
         } catch {
+          console.warn('⚠️  Failed to parse Gemini JSON, returning raw')
           parsed = { error: 'Failed to parse JSON response', raw: text }
         }
+        
+        console.log('✅ Gemini request successful')
         return res.json(parsed)
       } catch (geminiError) {
-        console.error('Gemini error:', geminiError.message)
+        console.error('❌ Gemini error:', geminiError.message)
+        
         // If vision failed, try without images
         if (file_urls && file_urls.length > 0 && genAIModel) {
+          console.log('🔵 Retrying Gemini without vision...')
           try {
             let fallbackPrompt = enhancedPrompt
             if (response_json_schema) {
@@ -166,26 +235,46 @@ router.post('/llm', async (req, res) => {
             const text = response.text()
             const jsonMatch = text.match(/\{[\s\S]*\}/) || text.match(/\[[\s\S]*\]/)
             const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text)
+            
+            console.log('✅ Gemini fallback successful')
             return res.json(parsed)
           } catch (fallbackError) {
-            console.error('Gemini fallback error:', fallbackError.message)
+            console.error('❌ Gemini fallback error:', fallbackError.message)
           }
         }
       }
     }
 
-    // If both fail, return error with helpful message
+    // ========================================
+    // BOTH FAILED - RETURN ERROR
+    // ========================================
+    console.error('❌ All AI services failed or unavailable')
+    console.error('   Debug Info:')
+    console.error('     OPENAI_KEY present:', !!OPENAI_KEY)
+    console.error('     GOOGLE_KEY present:', !!GOOGLE_KEY)
+    console.error('     OPENAI_KEY length:', OPENAI_KEY?.length || 0)
+    console.error('     GOOGLE_KEY length:', GOOGLE_KEY?.length || 0)
+    console.error('     process.env.OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET')
+    console.error('     process.env.GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? 'SET' : 'NOT SET')
+    
     return res.status(500).json({ 
       error: 'AI service unavailable',
       message: 'Neither OpenAI nor Google Gemini API is configured or available',
       help: 'Please add OPENAI_API_KEY or GOOGLE_API_KEY to your environment variables in DigitalOcean. See AI_API_KEYS_SETUP.md for instructions.',
-      configured: {
-        openai: !!process.env.OPENAI_API_KEY,
-        google: !!(process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY)
+      debug: {
+        openai_configured: !!OPENAI_KEY,
+        google_configured: !!GOOGLE_KEY,
+        openai_key_length: OPENAI_KEY?.length || 0,
+        google_key_length: GOOGLE_KEY?.length || 0,
+        env_check: {
+          OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET',
+          GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ? 'SET' : 'NOT SET',
+          GOOGLE_AI_API_KEY: process.env.GOOGLE_AI_API_KEY ? 'SET' : 'NOT SET'
+        }
       }
     })
   } catch (e) {
-    console.error('LLM endpoint error:', e)
+    console.error('❌ LLM endpoint error:', e)
     return res.status(500).json({ 
       error: 'llm_request_failed',
       message: e.message 
@@ -193,68 +282,90 @@ router.post('/llm', async (req, res) => {
   }
 })
 
-// Image generation endpoint
+// ========================================
+// IMAGE GENERATION ENDPOINT
+// ========================================
 router.post('/generate-image', async (req, res) => {
   try {
     const { prompt, width = 1024, height = 1024 } = req.body || {}
+    
+    console.log('🎨 Image generation request:', {
+      prompt: prompt?.substring(0, 100),
+      size: `${width}x${height}`
+    })
     
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' })
     }
 
-    // Try OpenAI DALL-E first
-    const openAIKey = process.env.OPENAI_API_KEY
-    if (openAIKey) {
+    // ========================================
+    // TRY OPENAI DALL-E
+    // ========================================
+    if (OPENAI_KEY) {
+      console.log('🎨 Attempting OpenAI DALL-E 3...')
       try {
+        // DALL-E 3 only supports specific sizes
+        let size = '1024x1024' // Default
+        if (width === 1024 && height === 1792) size = '1024x1792'
+        else if (width === 1792 && height === 1024) size = '1792x1024'
+        
         const { data } = await axios.post('https://api.openai.com/v1/images/generations', {
           model: process.env.OPENAI_IMAGE_MODEL || 'dall-e-3',
           prompt: prompt,
           n: 1,
-          size: `${width}x${height}`,
+          size: size,
           quality: 'standard',
           response_format: 'url'
         }, {
           headers: { 
-            Authorization: `Bearer ${openAIKey}`, 
+            Authorization: `Bearer ${OPENAI_KEY}`, 
             'Content-Type': 'application/json' 
           },
-          timeout: 60000
+          timeout: 90000 // 90 seconds for image generation
         })
 
         const imageUrl = data?.data?.[0]?.url
         if (imageUrl) {
+          console.log('✅ Image generated successfully')
           return res.json({ 
             url: imageUrl,
+            revised_prompt: data?.data?.[0]?.revised_prompt,
             provider: 'openai'
           })
         }
       } catch (openAIError) {
-        console.error('OpenAI image generation error:', openAIError.message)
+        console.error('❌ OpenAI image generation error:', openAIError.response?.data || openAIError.message)
+        
+        // Handle specific errors
+        if (openAIError.response?.status === 401) {
+          return res.status(401).json({
+            error: 'invalid_api_key',
+            message: 'OpenAI API key is invalid'
+          })
+        }
+        
+        if (openAIError.response?.data?.error?.code === 'insufficient_quota') {
+          return res.status(402).json({
+            error: 'quota_exceeded',
+            message: 'OpenAI API quota exceeded'
+          })
+        }
+        
         // Fall through to other providers
       }
     }
 
-    // Try Google Gemini image generation (Imagen)
-    const googleKey = GOOGLE_KEY
-    if (googleKey) {
-      try {
-        // Note: Gemini doesn't have direct image generation, but we can use Imagen API
-        // For now, return an error suggesting to use OpenAI
-        return res.status(501).json({
-          error: 'Image generation not fully implemented',
-          message: 'Please configure OPENAI_API_KEY for image generation, or implement Imagen API'
-        })
-      } catch (geminiError) {
-        console.error('Gemini image error:', geminiError.message)
-      }
-    }
-
+    // ========================================
+    // NO OTHER IMAGE PROVIDERS AVAILABLE
+    // ========================================
+    console.error('❌ No image generation service available')
     return res.status(500).json({
       error: 'Image generation unavailable',
-      message: 'No image generation service is configured. Please set OPENAI_API_KEY.'
+      message: 'No image generation service is configured. Please set OPENAI_API_KEY for DALL-E 3 image generation.',
+      help: 'Add OPENAI_API_KEY to your DigitalOcean environment variables'
     })
   } catch (e) {
-    console.error('Image generation error:', e)
+    console.error('❌ Image generation error:', e)
     return res.status(500).json({
       error: 'image_generation_failed',
       message: e.message

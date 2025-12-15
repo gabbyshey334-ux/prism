@@ -235,8 +235,10 @@ router.post('/', async (req, res) => {
     }
 
     // Prepare data for insertion - only include fields that exist in schema
+    const titleValue = validationResult.data.title || validationResult.data.topic || 'Untitled Trend'
     const trendData = {
-      title: validationResult.data.title || validationResult.data.topic,
+      title: titleValue,
+      topic: titleValue, // Always set topic (required by database) - copy from title
       description: validationResult.data.description,
       category: validationResult.data.category,
       relevance_score: validationResult.data.relevance_score || 0,
@@ -528,8 +530,10 @@ router.post('/bulk', async (req, res) => {
       }
       
       // Prepare data for insertion - only include fields that exist in schema
+      const titleValue = validationResult.data.title || validationResult.data.topic || 'Untitled Trend'
       const trendData = {
-        title: validationResult.data.title || validationResult.data.topic,
+        title: titleValue,
+        topic: titleValue, // Always set topic (required by database) - copy from title
         description: validationResult.data.description,
         category: validationResult.data.category,
         relevance_score: validationResult.data.relevance_score || 0,
@@ -552,7 +556,7 @@ router.post('/bulk', async (req, res) => {
         is_hidden: validationResult.data.is_hidden || false
       }
       
-      // Remove null/undefined values
+      // Remove null/undefined values (but keep topic and title)
       Object.keys(trendData).forEach(key => {
         if (trendData[key] === null || trendData[key] === undefined) {
           delete trendData[key]
