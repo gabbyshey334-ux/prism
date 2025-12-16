@@ -35,7 +35,7 @@ if (GOOGLE_KEY) {
     // Use newer model if available, fallback to gemini-pro
     const modelName = process.env.GOOGLE_MODEL || 'gemini-1.5-flash'
     genAIModel = genAI.getGenerativeModel({ model: modelName })
-    genAIVisionModel = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' }) // Vision-capable model
+    genAIVisionModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) // Vision-capable model (faster/cheaper)
     console.log('✅ Google Gemini AI initialized with model:', modelName)
   } catch (e) {
     console.error('❌ Failed to initialize Gemini AI:', e.message)
@@ -46,14 +46,14 @@ if (GOOGLE_KEY) {
 router.post('/llm', async (req, res) => {
   try {
     const { prompt, response_json_schema, add_context_from_internet, file_urls } = req.body || {}
-    
+
     console.log('🔵 LLM Request received:', {
       promptLength: prompt?.length || 0,
       hasSchema: !!response_json_schema,
       needsInternet: !!add_context_from_internet,
       imageCount: file_urls?.length || 0
     })
-    
+
     if (!prompt) {
       console.error('❌ No prompt provided')
       return res.status(400).json({ error: 'Prompt is required' })
@@ -75,14 +75,14 @@ router.post('/llm', async (req, res) => {
     // ========================================
     let openAIFailed = false
     let openAIErrorReason = null
-    
+
     if (OPENAI_KEY) {
       console.log('🔵 Attempting OpenAI...')
       try {
-        const system = response_json_schema 
+        const system = response_json_schema
           ? 'You are a helpful assistant that returns valid JSON according to the provided schema.'
           : 'You are a helpful assistant that returns valid JSON according to instructions.'
-        
+
         let userPrompt = enhancedPrompt
         if (response_json_schema) {
           userPrompt += `\n\nReturn ONLY valid JSON matching this schema: ${JSON.stringify(response_json_schema)}`
@@ -93,7 +93,7 @@ router.post('/llm', async (req, res) => {
         // Build messages array - support vision if images are provided
         const messages = [{ role: 'system', content: system }]
         let model
-        
+
         if (file_urls && Array.isArray(file_urls) && file_urls.length > 0) {
           console.log('🔵 Using OpenAI Vision (gpt-4o) for image analysis')
           // Use vision API - build content array with images
@@ -119,20 +119,20 @@ router.post('/llm', async (req, res) => {
           response_format: response_json_schema ? { type: 'json_object' } : undefined,
           max_tokens: file_urls && file_urls.length > 0 ? 4000 : 2000
         }, {
-          headers: { 
-            Authorization: `Bearer ${OPENAI_KEY}`, 
-            'Content-Type': 'application/json' 
+          headers: {
+            Authorization: `Bearer ${OPENAI_KEY}`,
+            'Content-Type': 'application/json'
           },
           timeout: file_urls && file_urls.length > 0 ? 90000 : 45000 // Longer timeout for vision
         })
 
         const content = data?.choices?.[0]?.message?.content || '{}'
         console.log('✅ OpenAI response received:', content.substring(0, 200))
-        
+
         let parsed
-        try { 
+        try {
           parsed = JSON.parse(content)
-        } catch { 
+        } catch {
           // Try to extract JSON from markdown code blocks
           const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/)
           if (jsonMatch) {
@@ -142,12 +142,12 @@ router.post('/llm', async (req, res) => {
             parsed = { error: 'Failed to parse JSON response', raw: content }
           }
         }
-        
+
         console.log('✅ OpenAI request successful')
         return res.json(parsed)
       } catch (openAIError) {
         console.error('❌ OpenAI error:', openAIError.response?.data || openAIError.message)
-        
+
         // Handle specific OpenAI errors
         if (openAIError.response?.status === 401) {
           console.error('❌ OpenAI API key is invalid')
@@ -156,7 +156,7 @@ router.post('/llm', async (req, res) => {
             message: 'OpenAI API key is invalid. Please check your OPENAI_API_KEY environment variable.'
           })
         }
-        
+
         openAIFailed = true
         if (openAIError.response?.status === 429) {
           console.error('❌ OpenAI rate limit exceeded - falling back to Google Gemini')
@@ -189,11 +189,11 @@ router.post('/llm', async (req, res) => {
         const buffer = Buffer.from(response.data)
         const base64 = buffer.toString('base64')
         // Determine MIME type from URL or response headers
-        const contentType = response.headers['content-type'] || 
-                           (imageUrl.match(/\.(jpg|jpeg)$/i) ? 'image/jpeg' :
-                            imageUrl.match(/\.png$/i) ? 'image/png' :
-                            imageUrl.match(/\.gif$/i) ? 'image/gif' :
-                            imageUrl.match(/\.webp$/i) ? 'image/webp' : 'image/jpeg')
+        const contentType = response.headers['content-type'] ||
+          (imageUrl.match(/\.(jpg|jpeg)$/i) ? 'image/jpeg' :
+            imageUrl.match(/\.png$/i) ? 'image/png' :
+              imageUrl.match(/\.gif$/i) ? 'image/gif' :
+                imageUrl.match(/\.webp$/i) ? 'image/webp' : 'image/jpeg')
         return {
           inlineData: {
             data: base64,
@@ -205,11 +205,11 @@ router.post('/llm', async (req, res) => {
         throw error
       }
     }
-    
-    const geminiModel = (file_urls && Array.isArray(file_urls) && file_urls.length > 0 && genAIVisionModel) 
-      ? genAIVisionModel 
+
+    const geminiModel = (file_urls && Array.isArray(file_urls) && file_urls.length > 0 && genAIVisionModel)
+      ? genAIVisionModel
       : genAIModel
-    
+
     if (geminiModel) {
       console.log('🔵 Attempting Google Gemini...')
       try {
@@ -234,25 +234,25 @@ router.post('/llm', async (req, res) => {
               console.warn(`⚠️  Skipping image ${url} due to fetch error:`, error.message)
             }
           }
-          
+
           if (imageParts.length === 0) {
             throw new Error('Failed to fetch any images for vision analysis')
           }
-          
+
           // Gemini vision format: array with text and image parts
           content = [fullPrompt, ...imageParts]
         } else {
           // Text-only prompt
           content = fullPrompt
         }
-        
+
         const result = await geminiModel.generateContent(content)
-        
+
         const response = await result.response
         const text = response.text()
-        
+
         console.log('✅ Gemini response received:', text.substring(0, 200))
-        
+
         let parsed
         try {
           // Try to extract JSON from response
@@ -266,12 +266,12 @@ router.post('/llm', async (req, res) => {
           console.warn('⚠️  Failed to parse Gemini JSON, returning raw')
           parsed = { error: 'Failed to parse JSON response', raw: text }
         }
-        
+
         console.log('✅ Gemini request successful')
         return res.json(parsed)
       } catch (geminiError) {
         console.error('❌ Gemini error:', geminiError.message)
-        
+
         // If vision failed, try without images
         if (file_urls && file_urls.length > 0 && genAIModel) {
           console.log('🔵 Retrying Gemini without vision...')
@@ -287,12 +287,17 @@ router.post('/llm', async (req, res) => {
             const text = response.text()
             const jsonMatch = text.match(/\{[\s\S]*\}/) || text.match(/\[[\s\S]*\]/)
             const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text)
-            
+
             console.log('✅ Gemini fallback successful')
             return res.json(parsed)
           } catch (fallbackError) {
             console.error('❌ Gemini fallback error:', fallbackError.message)
+            // Capture the specific error from Gemini to return to user if everything fails
+            geminiErrorMsg = fallbackError.message
           }
+        } else {
+          // Capture the specific error from Gemini to return to user if everything fails
+          geminiErrorMsg = geminiError.message
         }
       }
     }
@@ -308,9 +313,11 @@ router.post('/llm', async (req, res) => {
     console.error('     GOOGLE_KEY length:', GOOGLE_KEY?.length || 0)
     console.error('     process.env.OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET')
     console.error('     process.env.GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? 'SET' : 'NOT SET')
-    
+
     // Build helpful error message
     let errorMessage = 'AI service unavailable'
+    let geminiErrorMsg = null
+
     if (openAIFailed && OPENAI_KEY && GOOGLE_KEY) {
       if (openAIErrorReason === 'rate_limit') {
         errorMessage = 'OpenAI rate limit exceeded and Google Gemini fallback also failed. Please try again in a moment.'
@@ -322,8 +329,8 @@ router.post('/llm', async (req, res) => {
     } else if (!GOOGLE_KEY && openAIFailed) {
       errorMessage = 'OpenAI request failed and no fallback service (Google Gemini) is configured'
     }
-    
-    return res.status(500).json({ 
+
+    return res.status(500).json({
       error: 'AI service unavailable',
       message: errorMessage,
       help: 'Please add OPENAI_API_KEY or GOOGLE_API_KEY to your environment variables in DigitalOcean. See AI_API_KEYS_SETUP.md for instructions.',
@@ -337,14 +344,15 @@ router.post('/llm', async (req, res) => {
           OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET',
           GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ? 'SET' : 'NOT SET',
           GOOGLE_AI_API_KEY: process.env.GOOGLE_AI_API_KEY ? 'SET' : 'NOT SET'
-        }
+        },
+        gemini_error: geminiErrorMsg
       }
     })
   } catch (e) {
     console.error('❌ LLM endpoint error:', e)
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: 'llm_request_failed',
-      message: e.message 
+      message: e.message
     })
   }
 })
@@ -355,12 +363,12 @@ router.post('/llm', async (req, res) => {
 router.post('/generate-image', async (req, res) => {
   try {
     const { prompt, width = 1024, height = 1024 } = req.body || {}
-    
+
     console.log('🎨 Image generation request:', {
       prompt: prompt?.substring(0, 100),
       size: `${width}x${height}`
     })
-    
+
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' })
     }
@@ -375,7 +383,7 @@ router.post('/generate-image', async (req, res) => {
         let size = '1024x1024' // Default
         if (width === 1024 && height === 1792) size = '1024x1792'
         else if (width === 1792 && height === 1024) size = '1792x1024'
-        
+
         const { data } = await axios.post('https://api.openai.com/v1/images/generations', {
           model: process.env.OPENAI_IMAGE_MODEL || 'dall-e-3',
           prompt: prompt,
@@ -384,9 +392,9 @@ router.post('/generate-image', async (req, res) => {
           quality: 'standard',
           response_format: 'url'
         }, {
-          headers: { 
-            Authorization: `Bearer ${OPENAI_KEY}`, 
-            'Content-Type': 'application/json' 
+          headers: {
+            Authorization: `Bearer ${OPENAI_KEY}`,
+            'Content-Type': 'application/json'
           },
           timeout: 90000 // 90 seconds for image generation
         })
@@ -394,7 +402,7 @@ router.post('/generate-image', async (req, res) => {
         const imageUrl = data?.data?.[0]?.url
         if (imageUrl) {
           console.log('✅ Image generated successfully')
-          return res.json({ 
+          return res.json({
             url: imageUrl,
             revised_prompt: data?.data?.[0]?.revised_prompt,
             provider: 'openai'
@@ -402,7 +410,7 @@ router.post('/generate-image', async (req, res) => {
         }
       } catch (openAIError) {
         console.error('❌ OpenAI image generation error:', openAIError.response?.data || openAIError.message)
-        
+
         // Handle specific errors
         if (openAIError.response?.status === 401) {
           return res.status(401).json({
@@ -410,14 +418,14 @@ router.post('/generate-image', async (req, res) => {
             message: 'OpenAI API key is invalid'
           })
         }
-        
+
         if (openAIError.response?.data?.error?.code === 'insufficient_quota') {
           return res.status(402).json({
             error: 'quota_exceeded',
             message: 'OpenAI API quota exceeded'
           })
         }
-        
+
         // Fall through to other providers
       }
     }
