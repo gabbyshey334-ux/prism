@@ -46,6 +46,7 @@ if (GOOGLE_KEY) {
 router.post('/llm', async (req, res) => {
   try {
     const { prompt, response_json_schema, add_context_from_internet, file_urls } = req.body || {}
+    let geminiErrorMsg = null
 
     console.log('🔵 LLM Request received:', {
       promptLength: prompt?.length || 0,
@@ -316,7 +317,6 @@ router.post('/llm', async (req, res) => {
 
     // Build helpful error message
     let errorMessage = 'AI service unavailable'
-    let geminiErrorMsg = null
 
     if (openAIFailed && OPENAI_KEY && GOOGLE_KEY) {
       if (openAIErrorReason === 'rate_limit') {
