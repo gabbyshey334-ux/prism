@@ -29,6 +29,7 @@
 - [Development](#development)
 - [Testing](#testing)
 - [Security](#security)
+- [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -38,23 +39,26 @@ Prism is a comprehensive social media management platform that leverages artific
 
 ### Key Capabilities
 
-- **AI-Powered Content Creation** - Generate engaging posts using GPT-4, Claude, and DALL-E 3
+- **AI-Powered Content Creation** - Generate engaging posts using GPT-4, Google Gemini, and DALL-E 3
 - **Multi-Platform Publishing** - Manage 7+ social platforms from one dashboard
-- **Smart Scheduling** - AI-suggested optimal posting times
-- **Visual Design Editor** - Professional design tool with templates
-- **Trend Research** - Discover and leverage trending topics
+- **Smart Scheduling** - AI-suggested optimal posting times with background job processing
+- **Visual Design Editor** - Professional design tool with templates (CE.SDK integration)
+- **Trend Research** - Discover and leverage trending topics in real-time
 - **Analytics & Insights** - Track performance across all platforms
+- **Image Analysis** - AI-powered image analysis with automatic fallback between providers
 
 ## ✨ Features
 
 ### 🤖 AI-Powered Content Creation
 
-- **Smart Content Generation**: Generate engaging social media posts using advanced AI models (OpenAI GPT-4, Anthropic Claude)
+- **Smart Content Generation**: Generate engaging social media posts using advanced AI models (OpenAI GPT-4, Google Gemini)
 - **Image Generation**: Create stunning visuals with DALL-E 3 integration
+- **Image Analysis**: Analyze uploaded images with OpenAI Vision or Gemini Vision (automatic fallback on rate limits)
 - **Content Brainstorming**: AI-powered idea generation for your brand
 - **Content Improvement**: Enhance existing content with AI suggestions
 - **Brand Voice Consistency**: AI learns your brand's tone and style
 - **Platform-Specific Optimization**: Automatically optimize content for each platform's requirements
+- **Automatic Fallback**: Seamlessly falls back to Google Gemini when OpenAI rate limits are hit
 
 ### 📱 Multi-Platform Publishing
 
@@ -73,6 +77,7 @@ Prism is a comprehensive social media management platform that leverages artific
 - OAuth integration with secure token management
 - Platform-specific content formatting
 - Batch posting capabilities
+- Background job processing with retry logic
 
 ### 📅 Advanced Scheduling & Automation
 
@@ -81,7 +86,8 @@ Prism is a comprehensive social media management platform that leverages artific
 - **Queue Management**: Visual queue system for content planning
 - **Batch Upload**: Upload and schedule multiple posts at once
 - **Autolist**: Automatic posting loops with content rotation
-- **Background Processing**: Reliable job queue system with retry logic
+- **Background Processing**: Reliable job queue system with Bull and Redis
+- **Retry Logic**: Automatic retry with exponential backoff for failed posts
 
 ### 🎨 Visual Design Editor
 
@@ -123,6 +129,7 @@ Prism is a comprehensive social media management platform that leverages artific
 | **Zod** | Schema validation |
 | **Recharts** | Data visualization |
 | **Lucide React** | Icons |
+| **Axios** | HTTP client |
 
 ### Backend
 
@@ -133,21 +140,22 @@ Prism is a comprehensive social media management platform that leverages artific
 | **Supabase** | PostgreSQL database |
 | **Firebase Auth** | Authentication |
 | **Firebase Storage** | File storage |
-| **Redis** | Caching & sessions |
+| **Redis** | Caching, sessions & rate limiting |
 | **Bull** | Job queue system |
 | **Winston** | Logging |
 | **Helmet** | Security headers |
+| **Multer** | File upload handling |
 
 ### AI Services
 
-- **OpenAI**: GPT-4 for text generation, DALL-E 3 for images
-- **Anthropic**: Claude for text generation
-- **Google Gemini**: Alternative AI provider
+- **OpenAI**: GPT-4 for text generation, GPT-4o for vision, DALL-E 3 for images
+- **Google Gemini**: Primary alternative AI provider (defaults to `gemini-1.5-flash` for text, `gemini-1.5-pro` for vision)
+- **Automatic Fallback**: System automatically falls back to Gemini when OpenAI rate limits are exceeded
 
 ### Infrastructure
 
 - **DigitalOcean**: Backend hosting
-- **Vercel**: Frontend hosting
+- **Vercel**: Frontend hosting (optional)
 - **Docker**: Containerization
 - **NGINX**: Reverse proxy
 - **Let's Encrypt**: SSL certificates
@@ -161,7 +169,7 @@ Prism is a comprehensive social media management platform that leverages artific
 - Redis server running
 - Supabase account
 - Firebase project
-- Social media API keys
+- Social media API keys (optional for testing)
 
 ### Installation
 
@@ -173,10 +181,10 @@ cd prism
 
 2. **Install dependencies**
 ```bash
-   # Frontend
+# Frontend
 npm install
 
-   # Backend
+# Backend
 cd backend
 npm install
 ```
@@ -188,7 +196,7 @@ npm install
 VITE_API_BASE_URL=http://localhost:4000/api
 ```
 
-Create `backend/.env`:
+   Create `backend/.env`:
 ```env
 NODE_ENV=development
 PORT=4000
@@ -203,18 +211,35 @@ SUPABASE_SERVICE_KEY=your-service-role-key
 # Redis
 REDIS_HOST=localhost
 REDIS_PORT=6379
+REDIS_PASSWORD=  # Optional
 
 # Firebase
 FIREBASE_PROJECT_ID=your-project-id
 FIREBASE_CLIENT_EMAIL=your-client-email
 FIREBASE_PRIVATE_KEY=your-private-key
 
-# AI Services
+# AI Services (at least one required)
 OPENAI_API_KEY=your-openai-api-key
-ANTHROPIC_API_KEY=your-anthropic-api-key
-   
-   # Social Media APIs (see Configuration section)
-   # ... add your platform credentials
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_VISION_MODEL=gpt-4o
+OPENAI_IMAGE_MODEL=dall-e-3
+
+GOOGLE_API_KEY=your-google-api-key
+GOOGLE_MODEL=gemini-1.5-flash
+
+# CreativeEditor SDK (optional, for visual editor)
+CESDK_LICENSE_KEY=your-cesdk-license-key
+
+# JWT & Session Secrets
+JWT_SECRET=your-jwt-secret
+SESSION_SECRET=your-session-secret
+
+# Social Media APIs (optional, add as needed)
+FACEBOOK_APP_ID=your-facebook-app-id
+FACEBOOK_APP_SECRET=your-facebook-app-secret
+LINKEDIN_CLIENT_ID=your-linkedin-client-id
+LINKEDIN_CLIENT_SECRET=your-linkedin-client-secret
+# ... add other platform credentials
 ```
 
 4. **Set up database**
@@ -225,15 +250,15 @@ npm run migrate
 
 5. **Start development servers**
 ```bash
-   # Terminal 1: Frontend
+# Terminal 1: Frontend
 npm run dev
 
-   # Terminal 2: Backend
-   cd backend
+# Terminal 2: Backend
+cd backend
 npm run dev
 
-   # Terminal 3: Workers
-   cd backend
+# Terminal 3: Workers (for background jobs)
+cd backend
 npm run worker:dev
 ```
 
@@ -265,13 +290,20 @@ Visit `http://localhost:5173` to see the application.
 - `FIREBASE_PRIVATE_KEY`: Firebase service account private key
 
 #### AI Services
-- `OPENAI_API_KEY`: OpenAI API key
-- `OPENAI_MODEL`: Model to use (default: `gpt-4o-mini`)
-- `OPENAI_IMAGE_MODEL`: Image model (default: `dall-e-3`)
-- `ANTHROPIC_API_KEY`: Anthropic API key
-- `ANTHROPIC_MODEL`: Model to use (default: `claude-3-5-sonnet-20241022`)
 
-#### CreativeEditor SDK (CE.SDK)
+**OpenAI:**
+- `OPENAI_API_KEY`: OpenAI API key (required for OpenAI features)
+- `OPENAI_MODEL`: Text model (default: `gpt-4o-mini`)
+- `OPENAI_VISION_MODEL`: Vision model for image analysis (default: `gpt-4o`)
+- `OPENAI_IMAGE_MODEL`: Image generation model (default: `dall-e-3`)
+
+**Google Gemini:**
+- `GOOGLE_API_KEY` or `GOOGLE_AI_API_KEY`: Google Gemini API key (required for Gemini features)
+- `GOOGLE_MODEL`: Text model (default: `gemini-1.5-flash`)
+
+**Note**: At least one AI service (OpenAI or Google Gemini) must be configured. The system automatically falls back to Gemini when OpenAI rate limits are hit.
+
+#### CreativeEditor SDK
 - `CESDK_LICENSE_KEY`: CreativeEditor SDK license key (required for visual editor functionality)
 
 #### Social Media Platforms
@@ -302,19 +334,16 @@ Each platform requires specific OAuth credentials:
 - `BLUESKY_IDENTIFIER`
 - `BLUESKY_PASSWORD`
 
-#### CE.SDK
-- `CESDK_LICENSE_KEY`: CreativeEditor SDK license key
-
 #### Security
 - `JWT_SECRET`: Secret for JWT tokens
 - `SESSION_SECRET`: Secret for session management
 
 ### Social Media Platform Setup
 
-Each platform requires specific OAuth configurations. You'll need to:
+Each platform requires specific OAuth configurations:
 
 1. Create an app in the platform's developer console
-2. Configure OAuth redirect URLs
+2. Configure OAuth redirect URLs (e.g., `https://yourdomain.com/api/oauth/facebook/callback`)
 3. Add credentials to environment variables
 4. Set up webhooks (for some platforms)
 
@@ -364,6 +393,19 @@ PUT    /api/content/:id                  # Update content
 DELETE /api/content/:id                  # Delete content
 PATCH  /api/content/:id/status           # Update content status
 ```
+
+### Integrations (AI)
+
+```http
+POST   /api/integrations/llm             # Invoke LLM (OpenAI/Gemini with auto-fallback)
+POST   /api/integrations/generate-image   # Generate image with DALL-E 3
+```
+
+**LLM Endpoint Features:**
+- Automatic fallback from OpenAI to Google Gemini on rate limits
+- Image analysis support (OpenAI Vision or Gemini Vision)
+- JSON schema support for structured responses
+- Retry logic with exponential backoff
 
 ### Trends
 
@@ -424,6 +466,14 @@ POST   /api/cesdk/blocks/move             # Move block
 POST   /api/cesdk/background             # Change background
 ```
 
+### Uploads
+
+```http
+POST   /api/uploads                      # Upload file
+GET    /api/uploads/:id                  # Get file info
+DELETE /api/uploads/:id                  # Delete file
+```
+
 ### Health Checks
 
 ```http
@@ -449,6 +499,15 @@ docker-compose -f docker-compose.production.yml up -d
 3. Set build command: `npm install && npm run migrate`
 4. Deploy automatically on push
 
+#### Option 3: Manual Deployment
+
+```bash
+cd backend
+npm install
+npm run migrate
+npm start
+```
+
 ### Frontend (Vercel)
 
 1. Connect repository to Vercel
@@ -469,6 +528,19 @@ docker-compose logs -f
 docker-compose up -d --scale workers=3
 ```
 
+### Production Checklist
+
+- [ ] Set `NODE_ENV=production`
+- [ ] Configure all required environment variables
+- [ ] Set up SSL certificates
+- [ ] Configure CORS properly
+- [ ] Set up Redis for production
+- [ ] Configure database backups
+- [ ] Set up monitoring and logging
+- [ ] Configure rate limiting
+- [ ] Test all OAuth flows
+- [ ] Verify AI service fallback works
+
 ## 💻 Development
 
 ### Project Structure
@@ -478,21 +550,31 @@ prism/
 ├── src/                    # Frontend source
 │   ├── api/               # API client
 │   ├── components/        # React components
+│   │   ├── dashboard/    # Dashboard components
+│   │   ├── brands/        # Brand management
+│   │   ├── templates/     # Template components
+│   │   ├── trends/        # Trend components
+│   │   ├── ui/            # UI primitives
+│   │   └── editor/        # CE.SDK editor
 │   ├── pages/             # Page components
 │   ├── hooks/             # Custom hooks
-│   ├── lib/               # Utilities
-│   └── utils/              # Helper functions
+│   ├── lib/               # Utilities (Firebase, Supabase)
+│   └── utils/             # Helper functions
 ├── backend/               # Backend source
 │   ├── src/
 │   │   ├── config/        # Configuration
 │   │   ├── controllers/   # Route controllers
-│   │   ├── models/        # Data models
-│   │   ├── routes/        # API routes
-│   │   ├── services/      # Business logic
-│   │   └── workers/       # Background workers
-│   ├── migrations/        # Database migrations
-│   └── tests/             # Test files
-└── public/                # Static assets
+│   │   ├── models/         # Data models
+│   │   ├── routes/         # API routes
+│   │   ├── services/       # Business logic
+│   │   │   ├── ai/         # AI service integrations
+│   │   │   └── platforms/  # Platform integrations
+│   │   ├── workers/        # Background workers
+│   │   └── middleware/     # Express middleware
+│   ├── migrations/         # Database migrations
+│   ├── scripts/            # Deployment scripts
+│   └── tests/              # Test files
+└── public/                 # Static assets
 ```
 
 ### Available Scripts
@@ -513,15 +595,17 @@ npm run worker       # Start background workers
 npm run worker:dev   # Start workers in development mode
 npm run migrate      # Run database migrations
 npm test             # Run tests
+npm run test:social  # Run social posting tests
 ```
 
 ### Code Style
 
 - ESLint for JavaScript/TypeScript linting
-- Prettier for code formatting (if configured)
 - Follow React best practices
 - Use functional components with hooks
 - Implement proper error handling
+- Use async/await for asynchronous operations
+- Follow RESTful API conventions
 
 ## 🧪 Testing
 
@@ -530,6 +614,7 @@ npm test             # Run tests
 ```bash
 cd backend
 npm test
+npm run test:social
 ```
 
 ### Frontend Linting
@@ -543,6 +628,7 @@ npm run lint
 ```bash
 cd backend
 npm run test:digitalocean
+npm run validate:production
 ```
 
 ## 🔒 Security
@@ -562,6 +648,60 @@ Prism implements multiple security measures:
 - **Environment Variables**: Sensitive data in environment variables
 - **SSL/TLS**: Encryption in production
 
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### 401 Unauthorized Errors
+
+- Check Firebase authentication configuration
+- Verify JWT tokens are being sent correctly
+- Check session expiration settings
+- Ensure CORS is properly configured
+
+#### AI Service Rate Limits
+
+- The system automatically falls back to Google Gemini when OpenAI rate limits are hit
+- Ensure `GOOGLE_API_KEY` is configured for fallback
+- Check rate limit logs in backend console
+- Consider upgrading API tier if limits are consistently hit
+
+#### Image Analysis Failures
+
+- Verify image URLs are accessible
+- Check that at least one vision-capable AI service is configured
+- Ensure images are in supported formats (JPEG, PNG, GIF, WebP)
+- Check backend logs for specific error messages
+
+#### Database Connection Issues
+
+- Verify Supabase credentials are correct
+- Check network connectivity
+- Ensure database migrations have been run
+- Check Supabase dashboard for service status
+
+#### Redis Connection Issues
+
+- Verify Redis is running: `redis-cli ping`
+- Check Redis host and port configuration
+- Ensure Redis password is correct if required
+- Check Redis logs for errors
+
+#### Worker Jobs Not Processing
+
+- Ensure workers are running: `npm run worker`
+- Check Redis connection (workers require Redis)
+- Review worker logs for errors
+- Verify job queue configuration
+
+### Getting Help
+
+1. Check backend logs in `backend/logs/`
+2. Review browser console for frontend errors
+3. Check API health endpoint: `GET /api/health`
+4. Review environment variable configuration
+5. Check service status (Supabase, Firebase, Redis)
+
 ## 📈 Monitoring & Maintenance
 
 ### Health Checks
@@ -571,7 +711,7 @@ Prism implements multiple security measures:
 
 ### Logs
 
-- Application logs: Winston logger
+- Application logs: Winston logger (see `backend/logs/`)
 - Worker logs: Separate worker logging
 - Access logs: Request/response logging
 
@@ -599,6 +739,7 @@ We welcome contributions! Please follow these steps:
 - Write tests for new features
 - Update documentation as needed
 - Ensure all tests pass before submitting
+- Add comments for complex logic
 
 ## 📝 License
 
@@ -610,6 +751,7 @@ For support and questions:
 
 - Check the API documentation above
 - Review the codebase structure
+- Check troubleshooting section
 - Open an issue on GitHub
 
 ## 🙏 Acknowledgments
@@ -617,6 +759,7 @@ For support and questions:
 - Built with modern open-source technologies
 - Inspired by the need for better social media management tools
 - Special thanks to the open-source community
+- AI services powered by OpenAI and Google
 
 ---
 
@@ -627,3 +770,4 @@ For support and questions:
 Made with ❤️ by the Prism team
 
 </div>
+

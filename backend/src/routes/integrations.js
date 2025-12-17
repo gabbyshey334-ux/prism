@@ -35,8 +35,12 @@ if (GOOGLE_KEY) {
     // Use newer model if available, fallback to gemini-pro
     const modelName = process.env.GOOGLE_MODEL || 'gemini-1.5-flash'
     genAIModel = genAI.getGenerativeModel({ model: modelName })
-    genAIVisionModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) // Vision-capable model (faster/cheaper)
+    // Use gemini-1.5-flash for vision (supports vision and is faster/cheaper than pro)
+    // Can also use gemini-1.5-pro for better vision quality if needed
+    const visionModelName = process.env.GOOGLE_VISION_MODEL || 'gemini-1.5-flash'
+    genAIVisionModel = genAI.getGenerativeModel({ model: visionModelName })
     console.log('✅ Google Gemini AI initialized with model:', modelName)
+    console.log('✅ Google Gemini Vision model:', visionModelName)
   } catch (e) {
     console.error('❌ Failed to initialize Gemini AI:', e.message)
   }
@@ -181,29 +185,64 @@ router.post('/llm', async (req, res) => {
     // FALLBACK TO GOOGLE GEMINI
     // ========================================
     // Helper function to fetch image and convert to base64
-    const fetchImageAsBase64 = async (imageUrl) => {
-      try {
-        const response = await axios.get(imageUrl, {
-          responseType: 'arraybuffer',
-          timeout: 30000
-        })
-        const buffer = Buffer.from(response.data)
-        const base64 = buffer.toString('base64')
-        // Determine MIME type from URL or response headers
-        const contentType = response.headers['content-type'] ||
-          (imageUrl.match(/\.(jpg|jpeg)$/i) ? 'image/jpeg' :
-            imageUrl.match(/\.png$/i) ? 'image/png' :
-              imageUrl.match(/\.gif$/i) ? 'image/gif' :
-                imageUrl.match(/\.webp$/i) ? 'image/webp' : 'image/jpeg')
-        return {
-          inlineData: {
-            data: base64,
-            mimeType: contentType
+    const fetchImageAsBase64 = async (imageUrl, retries = 2) => {
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          // Handle data URLs (base64 encoded images)
+          if (imageUrl.startsWith('data:image/')) {
+            const [mimeType, base64Data] = imageUrl.split(',')
+            const mimeMatch = mimeType.match(/data:image\/([^;]+)/)
+            const contentType = mimeMatch ? `image/${mimeMatch[1]}` : 'image/png'
+            return {
+              inlineData: {
+                data: base64Data,
+                mimeType: contentType
+              }
+            }
           }
+
+          // Fetch from URL
+          const response = await axios.get(imageUrl, {
+            responseType: 'arraybuffer',
+            timeout: 30000,
+            maxRedirects: 5,
+            validateStatus: (status) => status >= 200 && status < 400
+          })
+          
+          const buffer = Buffer.from(response.data)
+          const base64 = buffer.toString('base64')
+          
+          // Determine MIME type from URL or response headers
+          let contentType = response.headers['content-type']
+          if (!contentType || !contentType.startsWith('image/')) {
+            // Fallback to URL extension
+            if (imageUrl.match(/\.(jpg|jpeg)$/i)) contentType = 'image/jpeg'
+            else if (imageUrl.match(/\.png$/i)) contentType = 'image/png'
+            else if (imageUrl.match(/\.gif$/i)) contentType = 'image/gif'
+            else if (imageUrl.match(/\.webp$/i)) contentType = 'image/webp'
+            else contentType = 'image/jpeg' // Default
+          }
+          
+          // Ensure content type is valid
+          if (!contentType.startsWith('image/')) {
+            contentType = 'image/jpeg'
+          }
+          
+          return {
+            inlineData: {
+              data: base64,
+              mimeType: contentType
+            }
+          }
+        } catch (error) {
+          if (attempt === retries) {
+            console.error(`❌ Failed to fetch image ${imageUrl} after ${retries + 1} attempts:`, error.message)
+            throw error
+          }
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+          console.warn(`⚠️  Retrying image fetch for ${imageUrl} (attempt ${attempt + 2}/${retries + 1})`)
         }
-      } catch (error) {
-        console.error(`❌ Failed to fetch image ${imageUrl}:`, error.message)
-        throw error
       }
     }
 
@@ -225,28 +264,38 @@ router.post('/llm', async (req, res) => {
         let content
         if (file_urls && Array.isArray(file_urls) && file_urls.length > 0 && genAIVisionModel) {
           console.log('🔵 Using Gemini Vision for image analysis')
+          console.log(`🔵 Processing ${file_urls.length} image(s)`)
+          
           // Fetch images and convert to base64
           const imageParts = []
-          for (const url of file_urls) {
+          for (let i = 0; i < file_urls.length; i++) {
+            const url = file_urls[i]
             try {
+              console.log(`🔵 Fetching image ${i + 1}/${file_urls.length}: ${url.substring(0, 100)}...`)
               const imagePart = await fetchImageAsBase64(url)
               imageParts.push(imagePart)
+              console.log(`✅ Image ${i + 1} fetched and converted to base64`)
             } catch (error) {
-              console.warn(`⚠️  Skipping image ${url} due to fetch error:`, error.message)
+              console.warn(`⚠️  Skipping image ${i + 1} (${url.substring(0, 50)}...) due to fetch error:`, error.message)
+              // Continue with other images instead of failing completely
             }
           }
 
           if (imageParts.length === 0) {
-            throw new Error('Failed to fetch any images for vision analysis')
+            throw new Error('Failed to fetch any images for vision analysis. Please check that image URLs are accessible.')
           }
 
+          console.log(`✅ Successfully prepared ${imageParts.length} image(s) for Gemini Vision`)
+
           // Gemini vision format: array with text and image parts
+          // Format: [text, image1, image2, ...]
           content = [fullPrompt, ...imageParts]
         } else {
           // Text-only prompt
           content = fullPrompt
         }
 
+        console.log('🔵 Sending request to Gemini...')
         const result = await geminiModel.generateContent(content)
 
         const response = await result.response
@@ -272,33 +321,53 @@ router.post('/llm', async (req, res) => {
         return res.json(parsed)
       } catch (geminiError) {
         console.error('❌ Gemini error:', geminiError.message)
+        console.error('❌ Gemini error details:', geminiError.response?.data || geminiError.stack)
+
+        // Check for specific Gemini errors
+        if (geminiError.message?.includes('SAFETY') || geminiError.message?.includes('safety')) {
+          console.error('❌ Gemini blocked content due to safety filters')
+          geminiErrorMsg = 'Content was blocked by safety filters. Please try with different images or content.'
+        } else if (geminiError.message?.includes('quota') || geminiError.message?.includes('rate limit')) {
+          console.error('❌ Gemini rate limit or quota exceeded')
+          geminiErrorMsg = 'Google Gemini API rate limit or quota exceeded. Please try again later.'
+        } else {
+          geminiErrorMsg = geminiError.message || 'Unknown Gemini API error'
+        }
 
         // If vision failed, try without images
         if (file_urls && file_urls.length > 0 && genAIModel) {
-          console.log('🔵 Retrying Gemini without vision...')
+          console.log('🔵 Retrying Gemini without vision (text-only mode)...')
           try {
             let fallbackPrompt = enhancedPrompt
+            // Add note that images couldn't be processed
+            fallbackPrompt += `\n\nNote: Images were provided but couldn't be analyzed. Please provide a text-based analysis based on the image URLs provided: ${file_urls.join(', ')}`
+            
             if (response_json_schema) {
               fallbackPrompt += `\n\nReturn ONLY valid JSON matching this schema: ${JSON.stringify(response_json_schema)}`
             } else {
               fallbackPrompt += `\n\nReturn ONLY valid JSON.`
             }
+            
             const result = await genAIModel.generateContent(fallbackPrompt)
             const response = await result.response
             const text = response.text()
-            const jsonMatch = text.match(/\{[\s\S]*\}/) || text.match(/\[[\s\S]*\]/)
-            const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text)
+            
+            let parsed
+            try {
+              const jsonMatch = text.match(/\{[\s\S]*\}/) || text.match(/\[[\s\S]*\]/)
+              parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text)
+            } catch (parseError) {
+              console.warn('⚠️  Failed to parse Gemini fallback JSON')
+              parsed = { error: 'Failed to parse response', raw: text }
+            }
 
-            console.log('✅ Gemini fallback successful')
+            console.log('✅ Gemini fallback successful (text-only)')
             return res.json(parsed)
           } catch (fallbackError) {
             console.error('❌ Gemini fallback error:', fallbackError.message)
             // Capture the specific error from Gemini to return to user if everything fails
-            geminiErrorMsg = fallbackError.message
+            geminiErrorMsg = fallbackError.message || geminiErrorMsg
           }
-        } else {
-          // Capture the specific error from Gemini to return to user if everything fails
-          geminiErrorMsg = geminiError.message
         }
       }
     }
