@@ -1,6 +1,90 @@
 const router = require('express').Router()
 const axios = require('axios')
 const { GoogleGenerativeAI } = require('@google/generative-ai')
+const rateLimit = require('express-rate-limit')
+
+// ========================================
+// REQUEST QUEUE FOR AI REQUESTS
+// ========================================
+class RequestQueue {
+  constructor(maxConcurrent = 2) {
+    this.queue = []
+    this.processing = 0
+    this.maxConcurrent = maxConcurrent
+  }
+
+  async add(fn) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ fn, resolve, reject })
+      this.process()
+    })
+  }
+
+  async process() {
+    if (this.processing >= this.maxConcurrent || this.queue.length === 0) {
+      return
+    }
+
+    this.processing++
+    const { fn, resolve, reject } = this.queue.shift()
+
+    try {
+      const result = await fn()
+      resolve(result)
+    } catch (error) {
+      reject(error)
+    } finally {
+      this.processing--
+      this.process() // Process next in queue
+    }
+  }
+}
+
+const aiQueue = new RequestQueue(2) // Max 2 concurrent AI requests
+
+// ========================================
+// RETRY WITH EXPONENTIAL BACKOFF
+// ========================================
+const retryWithBackoff = async (fn, maxRetries = 3, initialDelay = 2000) => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn()
+    } catch (error) {
+      const isRateLimit = error.response?.status === 429
+      const isLastAttempt = i === maxRetries - 1
+      
+      if (!isRateLimit || isLastAttempt) {
+        throw error
+      }
+      
+      const delay = initialDelay * Math.pow(2, i)
+      console.log(`⏳ Rate limited, waiting ${delay}ms before retry ${i + 1}/${maxRetries}`)
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+}
+
+// ========================================
+// RATE LIMITER MIDDLEWARE
+// ========================================
+const aiRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute window
+  max: 10, // 10 requests per minute per IP
+  message: { 
+    error: 'too_many_requests', 
+    message: 'Too many AI requests. Please wait a moment before trying again.' 
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.log('⚠️  Rate limit exceeded for IP:', req.ip)
+    res.status(429).json({
+      error: 'too_many_requests',
+      message: 'Too many AI requests. Please wait a moment before trying again.',
+      retryAfter: 60
+    })
+  }
+})
 
 // Initialize Gemini AI for text generation
 let genAIModel = null
@@ -46,475 +130,494 @@ if (GOOGLE_KEY) {
   }
 }
 
-// LLM endpoint - supports both OpenAI and Google Gemini
-router.post('/llm', async (req, res) => {
-  try {
-    const { prompt, response_json_schema, add_context_from_internet, file_urls } = req.body || {}
-    let geminiErrorMsg = null
+// ========================================
+// LLM ENDPOINT WITH RATE LIMITING & QUEUING
+// ========================================
+router.post('/llm', aiRateLimiter, async (req, res) => {
+  // Wrap entire logic in queue to prevent concurrent overload
+  return aiQueue.add(async () => {
+    try {
+      const { prompt, response_json_schema, add_context_from_internet, file_urls } = req.body || {}
+      let geminiErrorMsg = null
 
-    console.log('🔵 LLM Request received:', {
-      promptLength: prompt?.length || 0,
-      hasSchema: !!response_json_schema,
-      needsInternet: !!add_context_from_internet,
-      imageCount: file_urls?.length || 0
-    })
+      console.log('🔵 LLM Request received:', {
+        promptLength: prompt?.length || 0,
+        hasSchema: !!response_json_schema,
+        needsInternet: !!add_context_from_internet,
+        imageCount: file_urls?.length || 0
+      })
 
-    if (!prompt) {
-      console.error('❌ No prompt provided')
-      return res.status(400).json({ error: 'Prompt is required' })
-    }
-
-    // Build enhanced prompt with context if requested
-    let enhancedPrompt = prompt;
-    if (add_context_from_internet) {
-      enhancedPrompt = `${prompt}\n\nIMPORTANT: Use real-time internet context to provide accurate, current information. Research recent trends, news, and social media content when relevant.`;
-    }
-
-    // Add file context if images are provided
-    if (file_urls && Array.isArray(file_urls) && file_urls.length > 0) {
-      enhancedPrompt = `${enhancedPrompt}\n\nIMAGES PROVIDED (${file_urls.length}):\n${file_urls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\nAnalyze the content in these images and incorporate the visual information into your response.`;
-    }
-
-    // ========================================
-    // TRY OPENAI FIRST (Preferred)
-    // ========================================
-    let openAIFailed = false
-    let openAIErrorReason = null
-
-    if (OPENAI_KEY) {
-      console.log('🔵 Attempting OpenAI...')
-      try {
-        const system = response_json_schema
-          ? 'You are a helpful assistant that returns valid JSON according to the provided schema.'
-          : 'You are a helpful assistant that returns valid JSON according to instructions.'
-
-        let userPrompt = enhancedPrompt
-        if (response_json_schema) {
-          userPrompt += `\n\nReturn ONLY valid JSON matching this schema: ${JSON.stringify(response_json_schema)}`
-        } else {
-          userPrompt += `\n\nReturn ONLY valid JSON.`
-        }
-
-        // Build messages array - support vision if images are provided
-        const messages = [{ role: 'system', content: system }]
-        let model
-
-        if (file_urls && Array.isArray(file_urls) && file_urls.length > 0) {
-          console.log('🔵 Using OpenAI Vision (gpt-4o) for image analysis')
-          // Use vision API - build content array with images
-          const content = [
-            { type: 'text', text: userPrompt },
-            ...file_urls.map(url => ({
-              type: 'image_url',
-              image_url: { url: url }
-            }))
-          ]
-          messages.push({ role: 'user', content: content })
-          model = process.env.OPENAI_VISION_MODEL || 'gpt-4o' // Use vision model for images
-        } else {
-          console.log('🔵 Using OpenAI text model (gpt-4o-mini)')
-          messages.push({ role: 'user', content: userPrompt })
-          model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
-        }
-
-        const { data } = await axios.post('https://api.openai.com/v1/chat/completions', {
-          model: model,
-          messages: messages,
-          temperature: 0.7,
-          response_format: response_json_schema ? { type: 'json_object' } : undefined,
-          max_tokens: file_urls && file_urls.length > 0 ? 4000 : 2000
-        }, {
-          headers: {
-            Authorization: `Bearer ${OPENAI_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: file_urls && file_urls.length > 0 ? 90000 : 45000 // Longer timeout for vision
-        })
-
-        const content = data?.choices?.[0]?.message?.content || '{}'
-        console.log('✅ OpenAI response received:', content.substring(0, 200))
-
-        let parsed
-        try {
-          parsed = JSON.parse(content)
-        } catch {
-          // Try to extract JSON from markdown code blocks
-          const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/)
-          if (jsonMatch) {
-            parsed = JSON.parse(jsonMatch[1] || jsonMatch[0])
-          } else {
-            console.warn('⚠️  Failed to parse JSON, returning raw content')
-            parsed = { error: 'Failed to parse JSON response', raw: content }
-          }
-        }
-
-        console.log('✅ OpenAI request successful')
-        return res.json(parsed)
-      } catch (openAIError) {
-        console.error('❌ OpenAI error:', openAIError.response?.data || openAIError.message)
-
-        // Handle specific OpenAI errors
-        if (openAIError.response?.status === 401) {
-          console.error('❌ OpenAI API key is invalid')
-          return res.status(401).json({
-            error: 'invalid_api_key',
-            message: 'OpenAI API key is invalid. Please check your OPENAI_API_KEY environment variable.'
-          })
-        }
-
-        openAIFailed = true
-        if (openAIError.response?.status === 429) {
-          console.error('❌ OpenAI rate limit exceeded - falling back to Google Gemini')
-          openAIErrorReason = 'rate_limit'
-          // Don't return immediately - fall through to Gemini fallback
-        } else if (openAIError.response?.data?.error?.code === 'insufficient_quota') {
-          console.error('❌ OpenAI quota exceeded')
-          return res.status(402).json({
-            error: 'quota_exceeded',
-            message: 'OpenAI API quota exceeded. Please check your billing at platform.openai.com'
-          })
-        } else {
-          console.log('🔵 OpenAI error - falling back to Google Gemini...')
-          openAIErrorReason = 'error'
-        }
-        // Fall through to Gemini for rate limits and other errors
+      if (!prompt) {
+        console.error('❌ No prompt provided')
+        return res.status(400).json({ error: 'Prompt is required' })
       }
-    }
 
-    // ========================================
-    // FALLBACK TO GOOGLE GEMINI
-    // ========================================
-    // Helper function to fetch image and convert to base64
-    const fetchImageAsBase64 = async (imageUrl, retries = 2) => {
-      for (let attempt = 0; attempt <= retries; attempt++) {
+      // Build enhanced prompt with context if requested
+      let enhancedPrompt = prompt
+      if (add_context_from_internet) {
+        enhancedPrompt = `${prompt}\n\nIMPORTANT: Use real-time internet context to provide accurate, current information. Research recent trends, news, and social media content when relevant.`
+      }
+
+      // Add file context if images are provided
+      if (file_urls && Array.isArray(file_urls) && file_urls.length > 0) {
+        enhancedPrompt = `${enhancedPrompt}\n\nIMAGES PROVIDED (${file_urls.length}):\n${file_urls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\nAnalyze the content in these images and incorporate the visual information into your response.`
+      }
+
+      // ========================================
+      // TRY OPENAI FIRST (Preferred)
+      // ========================================
+      let openAIFailed = false
+      let openAIErrorReason = null
+
+      if (OPENAI_KEY) {
+        console.log('🔵 Attempting OpenAI...')
         try {
-          // Handle data URLs (base64 encoded images)
-          if (imageUrl.startsWith('data:image/')) {
-            const [mimeType, base64Data] = imageUrl.split(',')
-            const mimeMatch = mimeType.match(/data:image\/([^;]+)/)
-            const contentType = mimeMatch ? `image/${mimeMatch[1]}` : 'image/png'
+          const system = response_json_schema
+            ? 'You are a helpful assistant that returns valid JSON according to the provided schema.'
+            : 'You are a helpful assistant that returns valid JSON according to instructions.'
+
+          let userPrompt = enhancedPrompt
+          if (response_json_schema) {
+            userPrompt += `\n\nReturn ONLY valid JSON matching this schema: ${JSON.stringify(response_json_schema)}`
+          } else {
+            userPrompt += `\n\nReturn ONLY valid JSON.`
+          }
+
+          // Build messages array - support vision if images are provided
+          const messages = [{ role: 'system', content: system }]
+          let model
+
+          if (file_urls && Array.isArray(file_urls) && file_urls.length > 0) {
+            console.log('🔵 Using OpenAI Vision (gpt-4o) for image analysis')
+            // Use vision API - build content array with images
+            const content = [
+              { type: 'text', text: userPrompt },
+              ...file_urls.map(url => ({
+                type: 'image_url',
+                image_url: { url: url }
+              }))
+            ]
+            messages.push({ role: 'user', content: content })
+            model = process.env.OPENAI_VISION_MODEL || 'gpt-4o' // Use vision model for images
+          } else {
+            console.log('🔵 Using OpenAI text model (gpt-4o-mini)')
+            messages.push({ role: 'user', content: userPrompt })
+            model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+          }
+
+          // Use retry with exponential backoff for rate limits
+          const { data } = await retryWithBackoff(async () => {
+            return axios.post('https://api.openai.com/v1/chat/completions', {
+              model: model,
+              messages: messages,
+              temperature: 0.7,
+              response_format: response_json_schema ? { type: 'json_object' } : undefined,
+              max_tokens: file_urls && file_urls.length > 0 ? 4000 : 2000
+            }, {
+              headers: {
+                Authorization: `Bearer ${OPENAI_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              timeout: file_urls && file_urls.length > 0 ? 90000 : 45000 // Longer timeout for vision
+            })
+          }, 3, 2000) // 3 retries, 2 second initial delay
+
+          const content = data?.choices?.[0]?.message?.content || '{}'
+          console.log('✅ OpenAI response received:', content.substring(0, 200))
+
+          let parsed
+          try {
+            parsed = JSON.parse(content)
+          } catch {
+            // Try to extract JSON from markdown code blocks
+            const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/)
+            if (jsonMatch) {
+              parsed = JSON.parse(jsonMatch[1] || jsonMatch[0])
+            } else {
+              console.warn('⚠️  Failed to parse JSON, returning raw content')
+              parsed = { error: 'Failed to parse JSON response', raw: content }
+            }
+          }
+
+          console.log('✅ OpenAI request successful')
+          return res.json(parsed)
+        } catch (openAIError) {
+          console.error('❌ OpenAI error:', openAIError.response?.data || openAIError.message)
+
+          // Handle specific OpenAI errors
+          if (openAIError.response?.status === 401) {
+            console.error('❌ OpenAI API key is invalid')
+            return res.status(401).json({
+              error: 'invalid_api_key',
+              message: 'OpenAI API key is invalid. Please check your OPENAI_API_KEY environment variable.'
+            })
+          }
+
+          openAIFailed = true
+          if (openAIError.response?.status === 429) {
+            console.error('❌ OpenAI rate limit exceeded after retries - falling back to Google Gemini')
+            openAIErrorReason = 'rate_limit'
+            // Don't return immediately - fall through to Gemini fallback
+          } else if (openAIError.response?.data?.error?.code === 'insufficient_quota') {
+            console.error('❌ OpenAI quota exceeded')
+            return res.status(402).json({
+              error: 'quota_exceeded',
+              message: 'OpenAI API quota exceeded. Please check your billing at platform.openai.com'
+            })
+          } else {
+            console.log('🔵 OpenAI error - falling back to Google Gemini...')
+            openAIErrorReason = 'error'
+          }
+          // Fall through to Gemini for rate limits and other errors
+        }
+      }
+
+      // ========================================
+      // FALLBACK TO GOOGLE GEMINI
+      // ========================================
+      // Helper function to fetch image and convert to base64
+      const fetchImageAsBase64 = async (imageUrl, retries = 2) => {
+        for (let attempt = 0; attempt <= retries; attempt++) {
+          try {
+            // Handle data URLs (base64 encoded images)
+            if (imageUrl.startsWith('data:image/')) {
+              const [mimeType, base64Data] = imageUrl.split(',')
+              const mimeMatch = mimeType.match(/data:image\/([^;]+)/)
+              const contentType = mimeMatch ? `image/${mimeMatch[1]}` : 'image/png'
+              return {
+                inlineData: {
+                  data: base64Data,
+                  mimeType: contentType
+                }
+              }
+            }
+
+            // Fetch from URL
+            const response = await axios.get(imageUrl, {
+              responseType: 'arraybuffer',
+              timeout: 30000,
+              maxRedirects: 5,
+              validateStatus: (status) => status >= 200 && status < 400
+            })
+            
+            const buffer = Buffer.from(response.data)
+            const base64 = buffer.toString('base64')
+            
+            // Determine MIME type from URL or response headers
+            let contentType = response.headers['content-type']
+            if (!contentType || !contentType.startsWith('image/')) {
+              // Fallback to URL extension
+              if (imageUrl.match(/\.(jpg|jpeg)$/i)) contentType = 'image/jpeg'
+              else if (imageUrl.match(/\.png$/i)) contentType = 'image/png'
+              else if (imageUrl.match(/\.gif$/i)) contentType = 'image/gif'
+              else if (imageUrl.match(/\.webp$/i)) contentType = 'image/webp'
+              else contentType = 'image/jpeg' // Default
+            }
+            
+            // Ensure content type is valid
+            if (!contentType.startsWith('image/')) {
+              contentType = 'image/jpeg'
+            }
+            
             return {
               inlineData: {
-                data: base64Data,
+                data: base64,
                 mimeType: contentType
               }
             }
-          }
-
-          // Fetch from URL
-          const response = await axios.get(imageUrl, {
-            responseType: 'arraybuffer',
-            timeout: 30000,
-            maxRedirects: 5,
-            validateStatus: (status) => status >= 200 && status < 400
-          })
-          
-          const buffer = Buffer.from(response.data)
-          const base64 = buffer.toString('base64')
-          
-          // Determine MIME type from URL or response headers
-          let contentType = response.headers['content-type']
-          if (!contentType || !contentType.startsWith('image/')) {
-            // Fallback to URL extension
-            if (imageUrl.match(/\.(jpg|jpeg)$/i)) contentType = 'image/jpeg'
-            else if (imageUrl.match(/\.png$/i)) contentType = 'image/png'
-            else if (imageUrl.match(/\.gif$/i)) contentType = 'image/gif'
-            else if (imageUrl.match(/\.webp$/i)) contentType = 'image/webp'
-            else contentType = 'image/jpeg' // Default
-          }
-          
-          // Ensure content type is valid
-          if (!contentType.startsWith('image/')) {
-            contentType = 'image/jpeg'
-          }
-          
-          return {
-            inlineData: {
-              data: base64,
-              mimeType: contentType
+          } catch (error) {
+            if (attempt === retries) {
+              console.error(`❌ Failed to fetch image ${imageUrl} after ${retries + 1} attempts:`, error.message)
+              throw error
             }
+            // Wait before retry (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+            console.warn(`⚠️  Retrying image fetch for ${imageUrl} (attempt ${attempt + 2}/${retries + 1})`)
           }
-        } catch (error) {
-          if (attempt === retries) {
-            console.error(`❌ Failed to fetch image ${imageUrl} after ${retries + 1} attempts:`, error.message)
-            throw error
-          }
-          // Wait before retry (exponential backoff)
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
-          console.warn(`⚠️  Retrying image fetch for ${imageUrl} (attempt ${attempt + 2}/${retries + 1})`)
         }
       }
-    }
 
-    const geminiModel = (file_urls && Array.isArray(file_urls) && file_urls.length > 0 && genAIVisionModel)
-      ? genAIVisionModel
-      : genAIModel
+      const geminiModel = (file_urls && Array.isArray(file_urls) && file_urls.length > 0 && genAIVisionModel)
+        ? genAIVisionModel
+        : genAIModel
 
-    if (geminiModel) {
-      console.log('🔵 Attempting Google Gemini...')
-      try {
-        let fullPrompt = enhancedPrompt
-        if (response_json_schema) {
-          fullPrompt += `\n\nReturn ONLY valid JSON matching this schema: ${JSON.stringify(response_json_schema)}`
-        } else {
-          fullPrompt += `\n\nReturn ONLY valid JSON.`
-        }
-
-        // Build content array for Gemini - support vision if images are provided
-        let content
-        if (file_urls && Array.isArray(file_urls) && file_urls.length > 0 && genAIVisionModel) {
-          console.log('🔵 Using Gemini Vision for image analysis')
-          console.log(`🔵 Processing ${file_urls.length} image(s)`)
-          
-          // Fetch images and convert to base64
-          const imageParts = []
-          for (let i = 0; i < file_urls.length; i++) {
-            const url = file_urls[i]
-            try {
-              console.log(`🔵 Fetching image ${i + 1}/${file_urls.length}: ${url.substring(0, 100)}...`)
-              const imagePart = await fetchImageAsBase64(url)
-              imageParts.push(imagePart)
-              console.log(`✅ Image ${i + 1} fetched and converted to base64`)
-            } catch (error) {
-              console.warn(`⚠️  Skipping image ${i + 1} (${url.substring(0, 50)}...) due to fetch error:`, error.message)
-              // Continue with other images instead of failing completely
-            }
-          }
-
-          if (imageParts.length === 0) {
-            throw new Error('Failed to fetch any images for vision analysis. Please check that image URLs are accessible.')
-          }
-
-          console.log(`✅ Successfully prepared ${imageParts.length} image(s) for Gemini Vision`)
-
-          // Gemini vision format: array with text and image parts
-          // Format: [text, image1, image2, ...]
-          content = [fullPrompt, ...imageParts]
-        } else {
-          // Text-only prompt
-          content = fullPrompt
-        }
-
-        console.log('🔵 Sending request to Gemini...')
-        const result = await geminiModel.generateContent(content)
-
-        const response = await result.response
-        const text = response.text()
-
-        console.log('✅ Gemini response received:', text.substring(0, 200))
-
-        let parsed
+      if (geminiModel) {
+        console.log('🔵 Attempting Google Gemini...')
         try {
-          // Try to extract JSON from response
-          const jsonMatch = text.match(/\{[\s\S]*\}/) || text.match(/\[[\s\S]*\]/)
-          if (jsonMatch) {
-            parsed = JSON.parse(jsonMatch[0])
+          let fullPrompt = enhancedPrompt
+          if (response_json_schema) {
+            fullPrompt += `\n\nReturn ONLY valid JSON matching this schema: ${JSON.stringify(response_json_schema)}`
           } else {
-            parsed = JSON.parse(text)
+            fullPrompt += `\n\nReturn ONLY valid JSON.`
           }
-        } catch {
-          console.warn('⚠️  Failed to parse Gemini JSON, returning raw')
-          parsed = { error: 'Failed to parse JSON response', raw: text }
-        }
 
-        console.log('✅ Gemini request successful')
-        return res.json(parsed)
-      } catch (geminiError) {
-        console.error('❌ Gemini error:', geminiError.message)
-        console.error('❌ Gemini error details:', geminiError.response?.data || geminiError.stack)
+          // Build content array for Gemini - support vision if images are provided
+          let content
+          if (file_urls && Array.isArray(file_urls) && file_urls.length > 0 && genAIVisionModel) {
+            console.log('🔵 Using Gemini Vision for image analysis')
+            console.log(`🔵 Processing ${file_urls.length} image(s)`)
+            
+            // Fetch images and convert to base64
+            const imageParts = []
+            for (let i = 0; i < file_urls.length; i++) {
+              const url = file_urls[i]
+              try {
+                console.log(`🔵 Fetching image ${i + 1}/${file_urls.length}: ${url.substring(0, 100)}...`)
+                const imagePart = await fetchImageAsBase64(url)
+                imageParts.push(imagePart)
+                console.log(`✅ Image ${i + 1} fetched and converted to base64`)
+              } catch (error) {
+                console.warn(`⚠️  Skipping image ${i + 1} (${url.substring(0, 50)}...) due to fetch error:`, error.message)
+                // Continue with other images instead of failing completely
+              }
+            }
 
-        // Check for specific Gemini errors
-        if (geminiError.message?.includes('SAFETY') || geminiError.message?.includes('safety')) {
-          console.error('❌ Gemini blocked content due to safety filters')
-          geminiErrorMsg = 'Content was blocked by safety filters. Please try with different images or content.'
-        } else if (geminiError.message?.includes('quota') || geminiError.message?.includes('rate limit')) {
-          console.error('❌ Gemini rate limit or quota exceeded')
-          geminiErrorMsg = 'Google Gemini API rate limit or quota exceeded. Please try again later.'
-        } else {
-          geminiErrorMsg = geminiError.message || 'Unknown Gemini API error'
-        }
+            if (imageParts.length === 0) {
+              throw new Error('Failed to fetch any images for vision analysis. Please check that image URLs are accessible.')
+            }
 
-        // If vision failed, try without images
-        if (file_urls && file_urls.length > 0 && genAIModel) {
-          console.log('🔵 Retrying Gemini without vision (text-only mode)...')
+            console.log(`✅ Successfully prepared ${imageParts.length} image(s) for Gemini Vision`)
+
+            // Gemini vision format: array with text and image parts
+            // Format: [text, image1, image2, ...]
+            content = [fullPrompt, ...imageParts]
+          } else {
+            // Text-only prompt
+            content = fullPrompt
+          }
+
+          console.log('🔵 Sending request to Gemini...')
+          
+          // Use retry with exponential backoff for Gemini too
+          const result = await retryWithBackoff(async () => {
+            return geminiModel.generateContent(content)
+          }, 3, 2000)
+
+          const response = await result.response
+          const text = response.text()
+
+          console.log('✅ Gemini response received:', text.substring(0, 200))
+
+          let parsed
           try {
-            let fallbackPrompt = enhancedPrompt
-            // Add note that images couldn't be processed
-            fallbackPrompt += `\n\nNote: Images were provided but couldn't be analyzed. Please provide a text-based analysis based on the image URLs provided: ${file_urls.join(', ')}`
-            
-            if (response_json_schema) {
-              fallbackPrompt += `\n\nReturn ONLY valid JSON matching this schema: ${JSON.stringify(response_json_schema)}`
+            // Try to extract JSON from response
+            const jsonMatch = text.match(/\{[\s\S]*\}/) || text.match(/\[[\s\S]*\]/)
+            if (jsonMatch) {
+              parsed = JSON.parse(jsonMatch[0])
             } else {
-              fallbackPrompt += `\n\nReturn ONLY valid JSON.`
+              parsed = JSON.parse(text)
             }
-            
-            const result = await genAIModel.generateContent(fallbackPrompt)
-            const response = await result.response
-            const text = response.text()
-            
-            let parsed
-            try {
-              const jsonMatch = text.match(/\{[\s\S]*\}/) || text.match(/\[[\s\S]*\]/)
-              parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text)
-            } catch (parseError) {
-              console.warn('⚠️  Failed to parse Gemini fallback JSON')
-              parsed = { error: 'Failed to parse response', raw: text }
-            }
+          } catch {
+            console.warn('⚠️  Failed to parse Gemini JSON, returning raw')
+            parsed = { error: 'Failed to parse JSON response', raw: text }
+          }
 
-            console.log('✅ Gemini fallback successful (text-only)')
-            return res.json(parsed)
-          } catch (fallbackError) {
-            console.error('❌ Gemini fallback error:', fallbackError.message)
-            // Capture the specific error from Gemini to return to user if everything fails
-            geminiErrorMsg = fallbackError.message || geminiErrorMsg
+          console.log('✅ Gemini request successful')
+          return res.json(parsed)
+        } catch (geminiError) {
+          console.error('❌ Gemini error:', geminiError.message)
+          console.error('❌ Gemini error details:', geminiError.response?.data || geminiError.stack)
+
+          // Check for specific Gemini errors
+          if (geminiError.message?.includes('SAFETY') || geminiError.message?.includes('safety')) {
+            console.error('❌ Gemini blocked content due to safety filters')
+            geminiErrorMsg = 'Content was blocked by safety filters. Please try with different images or content.'
+          } else if (geminiError.message?.includes('quota') || geminiError.message?.includes('rate limit') || geminiError.message?.includes('429')) {
+            console.error('❌ Gemini rate limit or quota exceeded')
+            geminiErrorMsg = 'Google Gemini API rate limit or quota exceeded. Please try again later.'
+          } else {
+            geminiErrorMsg = geminiError.message || 'Unknown Gemini API error'
+          }
+
+          // If vision failed, try without images
+          if (file_urls && file_urls.length > 0 && genAIModel) {
+            console.log('🔵 Retrying Gemini without vision (text-only mode)...')
+            try {
+              let fallbackPrompt = enhancedPrompt
+              // Add note that images couldn't be processed
+              fallbackPrompt += `\n\nNote: Images were provided but couldn't be analyzed. Please provide a text-based analysis based on the image URLs provided: ${file_urls.join(', ')}`
+              
+              if (response_json_schema) {
+                fallbackPrompt += `\n\nReturn ONLY valid JSON matching this schema: ${JSON.stringify(response_json_schema)}`
+              } else {
+                fallbackPrompt += `\n\nReturn ONLY valid JSON.`
+              }
+              
+              const result = await retryWithBackoff(async () => {
+                return genAIModel.generateContent(fallbackPrompt)
+              }, 3, 2000)
+              
+              const response = await result.response
+              const text = response.text()
+              
+              let parsed
+              try {
+                const jsonMatch = text.match(/\{[\s\S]*\}/) || text.match(/\[[\s\S]*\]/)
+                parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text)
+              } catch (parseError) {
+                console.warn('⚠️  Failed to parse Gemini fallback JSON')
+                parsed = { error: 'Failed to parse response', raw: text }
+              }
+
+              console.log('✅ Gemini fallback successful (text-only)')
+              return res.json(parsed)
+            } catch (fallbackError) {
+              console.error('❌ Gemini fallback error:', fallbackError.message)
+              // Capture the specific error from Gemini to return to user if everything fails
+              geminiErrorMsg = fallbackError.message || geminiErrorMsg
+            }
           }
         }
       }
-    }
 
-    // ========================================
-    // BOTH FAILED - RETURN ERROR
-    // ========================================
-    console.error('❌ All AI services failed or unavailable')
-    console.error('   Debug Info:')
-    console.error('     OPENAI_KEY present:', !!OPENAI_KEY)
-    console.error('     GOOGLE_KEY present:', !!GOOGLE_KEY)
-    console.error('     OPENAI_KEY length:', OPENAI_KEY?.length || 0)
-    console.error('     GOOGLE_KEY length:', GOOGLE_KEY?.length || 0)
-    console.error('     process.env.OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET')
-    console.error('     process.env.GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? 'SET' : 'NOT SET')
+      // ========================================
+      // BOTH FAILED - RETURN ERROR
+      // ========================================
+      console.error('❌ All AI services failed or unavailable')
+      console.error('   Debug Info:')
+      console.error('     OPENAI_KEY present:', !!OPENAI_KEY)
+      console.error('     GOOGLE_KEY present:', !!GOOGLE_KEY)
+      console.error('     OPENAI_KEY length:', OPENAI_KEY?.length || 0)
+      console.error('     GOOGLE_KEY length:', GOOGLE_KEY?.length || 0)
+      console.error('     process.env.OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET')
+      console.error('     process.env.GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? 'SET' : 'NOT SET')
 
-    // Build helpful error message
-    let errorMessage = 'AI service unavailable'
+      // Build helpful error message
+      let errorMessage = 'AI service unavailable'
 
-    if (openAIFailed && OPENAI_KEY && GOOGLE_KEY) {
-      if (openAIErrorReason === 'rate_limit') {
-        errorMessage = 'OpenAI rate limit exceeded and Google Gemini fallback also failed. Please try again in a moment.'
-      } else {
-        errorMessage = 'OpenAI request failed and Google Gemini fallback also failed. Please try again.'
+      if (openAIFailed && OPENAI_KEY && GOOGLE_KEY) {
+        if (openAIErrorReason === 'rate_limit') {
+          errorMessage = 'OpenAI rate limit exceeded and Google Gemini fallback also failed. Please try again in a moment.'
+        } else {
+          errorMessage = 'OpenAI request failed and Google Gemini fallback also failed. Please try again.'
+        }
+      } else if (!OPENAI_KEY && !GOOGLE_KEY) {
+        errorMessage = 'Neither OpenAI nor Google Gemini API is configured or available'
+      } else if (!GOOGLE_KEY && openAIFailed) {
+        errorMessage = 'OpenAI request failed and no fallback service (Google Gemini) is configured'
       }
-    } else if (!OPENAI_KEY && !GOOGLE_KEY) {
-      errorMessage = 'Neither OpenAI nor Google Gemini API is configured or available'
-    } else if (!GOOGLE_KEY && openAIFailed) {
-      errorMessage = 'OpenAI request failed and no fallback service (Google Gemini) is configured'
-    }
 
-    return res.status(500).json({
-      error: 'AI service unavailable',
-      message: errorMessage,
-      help: 'Please add OPENAI_API_KEY or GOOGLE_API_KEY to your environment variables in DigitalOcean. See AI_API_KEYS_SETUP.md for instructions.',
-      fallback_attempted: openAIFailed && !!GOOGLE_KEY,
-      debug: {
-        openai_configured: !!OPENAI_KEY,
-        google_configured: !!GOOGLE_KEY,
-        openai_key_length: OPENAI_KEY?.length || 0,
-        google_key_length: GOOGLE_KEY?.length || 0,
-        env_check: {
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET',
-          GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ? 'SET' : 'NOT SET',
-          GOOGLE_AI_API_KEY: process.env.GOOGLE_AI_API_KEY ? 'SET' : 'NOT SET'
-        },
-        gemini_error: geminiErrorMsg
-      }
-    })
-  } catch (e) {
-    console.error('❌ LLM endpoint error:', e)
-    return res.status(500).json({
-      error: 'llm_request_failed',
-      message: e.message
-    })
-  }
+      return res.status(500).json({
+        error: 'AI service unavailable',
+        message: errorMessage,
+        help: 'Please add OPENAI_API_KEY or GOOGLE_API_KEY to your environment variables in DigitalOcean. See AI_API_KEYS_SETUP.md for instructions.',
+        fallback_attempted: openAIFailed && !!GOOGLE_KEY,
+        debug: {
+          openai_configured: !!OPENAI_KEY,
+          google_configured: !!GOOGLE_KEY,
+          openai_key_length: OPENAI_KEY?.length || 0,
+          google_key_length: GOOGLE_KEY?.length || 0,
+          env_check: {
+            OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET',
+            GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ? 'SET' : 'NOT SET',
+            GOOGLE_AI_API_KEY: process.env.GOOGLE_AI_API_KEY ? 'SET' : 'NOT SET'
+          },
+          gemini_error: geminiErrorMsg
+        }
+      })
+    } catch (e) {
+      console.error('❌ LLM endpoint error:', e)
+      return res.status(500).json({
+        error: 'llm_request_failed',
+        message: e.message
+      })
+    }
+  }) // End of aiQueue.add()
 })
 
 // ========================================
-// IMAGE GENERATION ENDPOINT
+// IMAGE GENERATION ENDPOINT WITH RATE LIMITING
 // ========================================
-router.post('/generate-image', async (req, res) => {
-  try {
-    const { prompt, width = 1024, height = 1024 } = req.body || {}
+router.post('/generate-image', aiRateLimiter, async (req, res) => {
+  return aiQueue.add(async () => {
+    try {
+      const { prompt, width = 1024, height = 1024 } = req.body || {}
 
-    console.log('🎨 Image generation request:', {
-      prompt: prompt?.substring(0, 100),
-      size: `${width}x${height}`
-    })
+      console.log('🎨 Image generation request:', {
+        prompt: prompt?.substring(0, 100),
+        size: `${width}x${height}`
+      })
 
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' })
-    }
-
-    // ========================================
-    // TRY OPENAI DALL-E
-    // ========================================
-    if (OPENAI_KEY) {
-      console.log('🎨 Attempting OpenAI DALL-E 3...')
-      try {
-        // DALL-E 3 only supports specific sizes
-        let size = '1024x1024' // Default
-        if (width === 1024 && height === 1792) size = '1024x1792'
-        else if (width === 1792 && height === 1024) size = '1792x1024'
-
-        const { data } = await axios.post('https://api.openai.com/v1/images/generations', {
-          model: process.env.OPENAI_IMAGE_MODEL || 'dall-e-3',
-          prompt: prompt,
-          n: 1,
-          size: size,
-          quality: 'standard',
-          response_format: 'url'
-        }, {
-          headers: {
-            Authorization: `Bearer ${OPENAI_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 90000 // 90 seconds for image generation
-        })
-
-        const imageUrl = data?.data?.[0]?.url
-        if (imageUrl) {
-          console.log('✅ Image generated successfully')
-          return res.json({
-            url: imageUrl,
-            revised_prompt: data?.data?.[0]?.revised_prompt,
-            provider: 'openai'
-          })
-        }
-      } catch (openAIError) {
-        console.error('❌ OpenAI image generation error:', openAIError.response?.data || openAIError.message)
-
-        // Handle specific errors
-        if (openAIError.response?.status === 401) {
-          return res.status(401).json({
-            error: 'invalid_api_key',
-            message: 'OpenAI API key is invalid'
-          })
-        }
-
-        if (openAIError.response?.data?.error?.code === 'insufficient_quota') {
-          return res.status(402).json({
-            error: 'quota_exceeded',
-            message: 'OpenAI API quota exceeded'
-          })
-        }
-
-        // Fall through to other providers
+      if (!prompt) {
+        return res.status(400).json({ error: 'Prompt is required' })
       }
-    }
 
-    // ========================================
-    // NO OTHER IMAGE PROVIDERS AVAILABLE
-    // ========================================
-    console.error('❌ No image generation service available')
-    return res.status(500).json({
-      error: 'Image generation unavailable',
-      message: 'No image generation service is configured. Please set OPENAI_API_KEY for DALL-E 3 image generation.',
-      help: 'Add OPENAI_API_KEY to your DigitalOcean environment variables'
-    })
-  } catch (e) {
-    console.error('❌ Image generation error:', e)
-    return res.status(500).json({
-      error: 'image_generation_failed',
-      message: e.message
-    })
-  }
+      // ========================================
+      // TRY OPENAI DALL-E
+      // ========================================
+      if (OPENAI_KEY) {
+        console.log('🎨 Attempting OpenAI DALL-E 3...')
+        try {
+          // DALL-E 3 only supports specific sizes
+          let size = '1024x1024' // Default
+          if (width === 1024 && height === 1792) size = '1024x1792'
+          else if (width === 1792 && height === 1024) size = '1792x1024'
+
+          const { data } = await retryWithBackoff(async () => {
+            return axios.post('https://api.openai.com/v1/images/generations', {
+              model: process.env.OPENAI_IMAGE_MODEL || 'dall-e-3',
+              prompt: prompt,
+              n: 1,
+              size: size,
+              quality: 'standard',
+              response_format: 'url'
+            }, {
+              headers: {
+                Authorization: `Bearer ${OPENAI_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              timeout: 90000 // 90 seconds for image generation
+            })
+          }, 3, 3000) // 3 retries, 3 second initial delay for image generation
+
+          const imageUrl = data?.data?.[0]?.url
+          if (imageUrl) {
+            console.log('✅ Image generated successfully')
+            return res.json({
+              url: imageUrl,
+              revised_prompt: data?.data?.[0]?.revised_prompt,
+              provider: 'openai'
+            })
+          }
+        } catch (openAIError) {
+          console.error('❌ OpenAI image generation error:', openAIError.response?.data || openAIError.message)
+
+          // Handle specific errors
+          if (openAIError.response?.status === 401) {
+            return res.status(401).json({
+              error: 'invalid_api_key',
+              message: 'OpenAI API key is invalid'
+            })
+          }
+
+          if (openAIError.response?.data?.error?.code === 'insufficient_quota') {
+            return res.status(402).json({
+              error: 'quota_exceeded',
+              message: 'OpenAI API quota exceeded'
+            })
+          }
+
+          // Fall through to other providers
+        }
+      }
+
+      // ========================================
+      // NO OTHER IMAGE PROVIDERS AVAILABLE
+      // ========================================
+      console.error('❌ No image generation service available')
+      return res.status(500).json({
+        error: 'Image generation unavailable',
+        message: 'No image generation service is configured. Please set OPENAI_API_KEY for DALL-E 3 image generation.',
+        help: 'Add OPENAI_API_KEY to your DigitalOcean environment variables'
+      })
+    } catch (e) {
+      console.error('❌ Image generation error:', e)
+      return res.status(500).json({
+        error: 'image_generation_failed',
+        message: e.message
+      })
+    }
+  })
 })
 
 module.exports = router
