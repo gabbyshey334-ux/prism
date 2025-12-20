@@ -123,8 +123,20 @@ export const auth = {
   }
 };
 
-// Add token to all requests if it exists
+// ========================================
+// REQUEST INTERCEPTOR - SKIP AUTH FOR INTEGRATIONS
+// ========================================
 api.interceptors.request.use(async (config) => {
+  // Skip authentication for integration endpoints (they don't need it)
+  const isIntegrationEndpoint = config.url?.includes('/integrations/');
+  
+  if (isIntegrationEndpoint) {
+    if (DEV_MODE) {
+      console.log('🔓 Skipping auth for integration endpoint:', config.url);
+    }
+    return config;
+  }
+  
   let token = auth.getAccessToken();
   
   if (!token) {
@@ -481,7 +493,6 @@ export const entities = {
   },
 };
 
-// Default export
 // Integrations API
 export const integrations = {
   Core: {
