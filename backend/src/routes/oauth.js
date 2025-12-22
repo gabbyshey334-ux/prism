@@ -3,11 +3,13 @@ const axios = require('axios')
 const { supabaseAdmin } = require('../config/supabase')
 const { extractAuth } = require('../middleware/extractAuth')
 
-// Apply auth extraction to all routes to get user context
-//router.use(extractAuth)
+// ========================================
+// CRITICAL: extractAuth only on initiation routes, NOT callbacks
+// Callbacks are called by external services without auth tokens
+// ========================================
 
 // TikTok OAuth
-router.get('/tiktok', (req, res) => {
+router.get('/tiktok', extractAuth, (req, res) => {
   console.log('🎵 TikTok OAuth initiated');
   
   // Include user ID in state if available
@@ -40,10 +42,10 @@ router.get('/tiktok/callback', async (req, res) => {
     }
     
     // Extract user ID from state or request
-    let userId = req.user?.uid || null
+    let userId = null
     try {
       const stateData = JSON.parse(state)
-      userId = stateData.userId || userId
+      userId = stateData.userId || null
     } catch {}
     
     if (process.env.NODE_ENV === 'development') {
@@ -134,7 +136,7 @@ router.get('/tiktok/callback', async (req, res) => {
 })
 
 // LinkedIn OAuth
-router.get('/linkedin', (req, res) => {
+router.get('/linkedin', extractAuth, (req, res) => {
   console.log('💼 LinkedIn OAuth initiated');
   
   // Include user ID in state if available
@@ -167,10 +169,10 @@ router.get('/linkedin/callback', async (req, res) => {
     }
     
     // Extract user ID from state or request
-    let userId = req.user?.uid || null
+    let userId = null
     try {
       const stateData = JSON.parse(state)
-      userId = stateData.userId || userId
+      userId = stateData.userId || null
     } catch {}
     
     if (process.env.NODE_ENV === 'development') {
@@ -258,7 +260,14 @@ router.get('/linkedin/callback', async (req, res) => {
 })
 
 // Google OAuth
-router.get('/google', (req, res) => {
+router.get('/google', extractAuth, (req, res) => {
+  console.log('🔍 Google OAuth initiated');
+  
+  const state = JSON.stringify({
+    random: Math.random().toString(36).slice(2),
+    userId: req.user?.uid || null
+  });
+  
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID,
     redirect_uri: process.env.GOOGLE_CALLBACK_URL,
@@ -266,16 +275,30 @@ router.get('/google', (req, res) => {
     scope: 'openid email profile https://www.googleapis.com/auth/youtube.upload',
     access_type: 'offline',
     prompt: 'consent',
-    state: Math.random().toString(36).slice(2)
+    state: state
   })
   const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+  console.log('🔍 Redirecting to Google');
   res.redirect(url)
 })
 
 router.get('/google/callback', async (req, res) => {
+  console.log('🔍 Google OAuth callback received');
+  
   try {
-    const { code } = req.query
-    if (!code) return res.status(400).json({ error: 'missing_code' })
+    const { code, state } = req.query
+    
+    if (!code) {
+      console.error('❌ Google callback: Missing authorization code');
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback?provider=google&error=missing_code`)
+    }
+
+    // Extract user ID from state
+    let userId = null
+    try {
+      const stateData = JSON.parse(state)
+      userId = stateData.userId || null
+    } catch {}
 
     const tokenRes = await axios.post('https://oauth2.googleapis.com/token', new URLSearchParams({
       code,
@@ -287,28 +310,60 @@ router.get('/google/callback', async (req, res) => {
 
     const { access_token, refresh_token, expires_in } = tokenRes.data || {}
 
-    let account_name = null
+    let profile = null
+    let platformUsername = null
+    let platformUserId = null
+    
     try {
-      const userInfo = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: `Bearer ${access_token}` } })
-      account_name = userInfo.data?.email || userInfo.data?.name || null
-    } catch {}
+      const userInfo = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', { 
+        headers: { Authorization: `Bearer ${access_token}` } 
+      })
+      profile = userInfo.data
+      platformUserId = profile.sub || null
+      platformUsername = profile.email || profile.name || null
+      console.log('✅ Google profile fetched:', platformUsername);
+    } catch (e) {
+      console.error('⚠️ Google profile fetch failed:', e.message)
+    }
 
-    await supabaseAdmin.from('oauth_tokens').insert({
-      platform: 'google',
-      access_token,
-      refresh_token,
-      expires_in,
-      account_name
-    })
+    const expiresAt = expires_in 
+      ? new Date(Date.now() + expires_in * 1000)
+      : null
+
+    // Save to social_media_connections
+    const { data: connection, error } = await supabaseAdmin
+      .from('social_media_connections')
+      .insert({
+        user_id: userId,
+        brand_id: null,
+        platform: 'google',
+        platform_user_id: platformUserId,
+        platform_username: platformUsername,
+        access_token: access_token,
+        refresh_token: refresh_token || null,
+        token_expires_at: expiresAt,
+        profile_data: profile,
+        is_active: true
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('❌ Database insert error:', error);
+      throw error;
+    }
+
+    console.log('✅ Google connection saved successfully:', connection?.id);
 
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback?provider=google&connected=true`)
   } catch (e) {
+    console.error('❌ Google OAuth error:', e.response?.data || e.message)
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback?provider=google&error=callback_failed`)
   }
 })
 
 // Facebook OAuth
-router.get('/facebook', (req, res) => {
+router.get('/facebook', extractAuth, (req, res) => {
   console.log('📘 Facebook OAuth initiated');
   
   // Include user ID in state if available
@@ -321,7 +376,7 @@ router.get('/facebook', (req, res) => {
     client_id: process.env.FACEBOOK_APP_ID,
     redirect_uri: process.env.FACEBOOK_CALLBACK_URL,
     response_type: 'code',
-    scope: 'public_profile,email',
+    scope: 'public_profile,email,pages_show_list',
     state: state
   })
   const url = `https://www.facebook.com/v18.0/dialog/oauth?${params.toString()}`
@@ -341,10 +396,10 @@ router.get('/facebook/callback', async (req, res) => {
     }
 
     // Extract user ID from state or request
-    let userId = req.user?.uid || null
+    let userId = null
     try {
       const stateData = JSON.parse(state)
-      userId = stateData.userId || userId
+      userId = stateData.userId || null
     } catch {}
     
     if (process.env.NODE_ENV === 'development') {
@@ -429,25 +484,31 @@ router.get('/facebook/callback', async (req, res) => {
   }
 })
 
-// Instagram OAuth (uses Meta/Facebook credentials but different API)
-router.get('/instagram', (req, res) => {
-  console.log('📷 Instagram OAuth initiated');
+// ========================================
+// INSTAGRAM OAUTH - USES GRAPH API VIA FACEBOOK
+// ========================================
+router.get('/instagram', extractAuth, (req, res) => {
+  console.log('📷 Instagram OAuth initiated (via Facebook Graph API)');
   
   // Include user ID in state if available
   const state = JSON.stringify({
     random: Math.random().toString(36).slice(2),
-    userId: req.user?.uid || null
+    userId: req.user?.uid || null,
+    platform: 'instagram'
   });
   
+  // Instagram Graph API requires Facebook OAuth with specific scopes
   const params = new URLSearchParams({
-    client_id: process.env.INSTAGRAM_CLIENT_ID || process.env.FACEBOOK_APP_ID,
+    client_id: process.env.FACEBOOK_APP_ID, // Same as Facebook
     redirect_uri: process.env.INSTAGRAM_CALLBACK_URL,
     response_type: 'code',
-    scope: 'user_profile,user_media',
+    scope: 'instagram_basic,pages_show_list,pages_read_engagement,business_management', // Graph API scopes
     state: state
   })
-  const url = `https://api.instagram.com/oauth/authorize?${params.toString()}`
-  console.log('📷 Redirecting to Instagram');
+  
+  // Use Facebook OAuth endpoint (Instagram Graph API uses Facebook login)
+  const url = `https://www.facebook.com/v18.0/dialog/oauth?${params.toString()}`
+  console.log('📷 Redirecting to Facebook OAuth for Instagram access');
   res.redirect(url)
 })
 
@@ -462,109 +523,117 @@ router.get('/instagram/callback', async (req, res) => {
       return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback?provider=instagram&error=missing_code`)
     }
 
-    // Extract user ID from state or request
-    let userId = req.user?.uid || null
+    // Extract user ID from state
+    let userId = null
     try {
       const stateData = JSON.parse(state)
-      userId = stateData.userId || userId
+      userId = stateData.userId || null
     } catch {}
     
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📷 Instagram: Exchanging code for token...');
-    }
+    console.log('📷 Instagram: Exchanging code for Facebook token...');
 
-    // Exchange code for short-lived token
+    // Exchange code for Facebook access token (Graph API flow)
+    const tokenUrl = 'https://graph.facebook.com/v18.0/oauth/access_token'
     const params = new URLSearchParams({
-      client_id: process.env.INSTAGRAM_CLIENT_ID || process.env.FACEBOOK_APP_ID,
-      client_secret: process.env.INSTAGRAM_CLIENT_SECRET || process.env.FACEBOOK_APP_SECRET,
-      grant_type: 'authorization_code',
+      client_id: process.env.FACEBOOK_APP_ID,
+      client_secret: process.env.FACEBOOK_APP_SECRET,
       redirect_uri: process.env.INSTAGRAM_CALLBACK_URL,
       code
     })
     
-    const tokenRes = await axios.post('https://api.instagram.com/oauth/access_token', params, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    const tokenRes = await axios.get(`${tokenUrl}?${params.toString()}`)
+    const { access_token } = tokenRes.data
+    console.log('✅ Facebook token received for Instagram access');
+
+    // Get user's Facebook Pages (required for Instagram Graph API)
+    console.log('📷 Fetching Facebook Pages...');
+    const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
+      params: { access_token }
     })
-    const { access_token, user_id } = tokenRes.data || {}
-    if (process.env.NODE_ENV === 'development') {
-      console.log('✅ Instagram token received');
+    
+    const pages = pagesRes.data?.data || []
+    console.log(`📷 Found ${pages.length} Facebook page(s)`);
+    
+    if (pages.length === 0) {
+      console.error('❌ No Facebook Pages found - Instagram Graph API requires a connected Facebook Page');
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback?provider=instagram&error=no_facebook_page`)
     }
 
-    // Fetch user profile
-    let profile = null
-    let platformUsername = null
+    // Get Instagram Business Account for each page
+    let instagramAccount = null
+    let pageAccessToken = null
     
-    try {
-      console.log('📷 Fetching Instagram user profile...');
-      const profileRes = await axios.get(`https://graph.instagram.com/me`, {
-        params: { 
-          fields: 'id,username,account_type,media_count',
-          access_token: access_token 
-        }
-      })
-      profile = profileRes.data || {}
-      platformUsername = profile.username || null
-      console.log('✅ Instagram profile fetched:', platformUsername);
-    } catch (e) {
-      console.error('⚠️ Instagram profile fetch failed:', e.message)
-      // Try alternate method
+    for (const page of pages) {
       try {
-        const altRes = await axios.get(`https://graph.instagram.com/${user_id}`, {
+        console.log(`📷 Checking page "${page.name}" for Instagram connection...`);
+        
+        const igRes = await axios.get(`https://graph.facebook.com/v18.0/${page.id}`, {
           params: { 
-            fields: 'id,username',
-            access_token: access_token 
+            fields: 'instagram_business_account',
+            access_token: page.access_token 
           }
         })
-        profile = altRes.data || {}
-        platformUsername = profile.username || null
-        console.log('✅ Instagram profile fetched (alternate):', platformUsername);
-      } catch (e2) {
-        console.error('⚠️ Instagram profile fetch (alternate) failed:', e2.message)
+        
+        if (igRes.data?.instagram_business_account) {
+          instagramAccount = igRes.data.instagram_business_account
+          pageAccessToken = page.access_token
+          console.log(`✅ Found Instagram Business Account: ${instagramAccount.id}`);
+          
+          // Get Instagram profile info
+          console.log('📷 Fetching Instagram profile details...');
+          const profileRes = await axios.get(`https://graph.facebook.com/v18.0/${instagramAccount.id}`, {
+            params: {
+              fields: 'id,username,name,profile_picture_url,followers_count,media_count',
+              access_token: pageAccessToken
+            }
+          })
+          
+          const profile = profileRes.data
+          console.log(`✅ Instagram profile fetched: @${profile.username}`);
+          
+          // Save connection
+          console.log('💾 Saving Instagram connection to database...');
+          const { data: connection, error } = await supabaseAdmin
+            .from('social_media_connections')
+            .insert({
+              user_id: userId,
+              brand_id: null,
+              platform: 'instagram',
+              platform_user_id: profile.id,
+              platform_username: profile.username || profile.name,
+              access_token: pageAccessToken, // Use page access token for API calls
+              refresh_token: null,
+              token_expires_at: null, // Page tokens can be long-lived
+              profile_data: profile,
+              is_active: true
+            })
+            .select()
+            .single()
+
+          if (error) {
+            console.error('❌ Database insert error:', error);
+            throw error;
+          }
+          
+          console.log('✅ Instagram connection saved successfully:', connection?.id);
+          return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback?provider=instagram&connected=true`)
+        }
+      } catch (e) {
+        console.error(`⚠️ Error checking page "${page.name}" for Instagram:`, e.message)
       }
     }
-
-    // Instagram tokens expire in 60 days by default
-    const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) // 60 days
-
-    console.log('💾 Saving Instagram connection to database...');
-    if (process.env.NODE_ENV === 'development') {
-      console.log('   user_id:', userId);
-    }
-    console.log('   platform_username:', platformUsername);
-    if (process.env.NODE_ENV === 'development') {
-      console.log('   platform_user_id:', user_id);
-    }
-
-    // Save to social_media_connections
-    const { data: connection, error } = await supabaseAdmin
-      .from('social_media_connections')
-      .insert({
-        user_id: userId,
-        brand_id: null,
-        platform: 'instagram',
-        platform_user_id: user_id,
-        platform_username: platformUsername,
-        access_token: access_token,
-        refresh_token: null, // Instagram doesn't provide refresh tokens
-        token_expires_at: expiresAt,
-        profile_data: profile,
-        is_active: true
-      })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('❌ Database insert error:', error);
-      throw error;
-    }
-
-    console.log('✅ Instagram connection saved successfully:', connection?.id);
-
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback?provider=instagram&connected=true`)
+    
+    // No Instagram Business Account found on any page
+    console.error('❌ No Instagram Business Account found on any Facebook Page');
+    console.error('💡 User needs to:');
+    console.error('   1. Convert Instagram to Business/Creator account');
+    console.error('   2. Connect it to a Facebook Page');
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback?provider=instagram&error=no_instagram_business_account`)
+    
   } catch (e) {
     console.error('❌ Instagram OAuth error:', e.response?.data || e.message)
-    const errorDetail = e.response?.data?.error_message || e.response?.data?.error?.message || 'callback_failed'
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback?provider=instagram&error=${errorDetail}`)
+    const errorDetail = e.response?.data?.error?.message || e.message || 'callback_failed'
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback?provider=instagram&error=${encodeURIComponent(errorDetail)}`)
   }
 })
 
