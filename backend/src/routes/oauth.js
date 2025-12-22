@@ -4,7 +4,7 @@ const { supabaseAdmin } = require('../config/supabase')
 const { extractAuth } = require('../middleware/extractAuth')
 
 // Apply auth extraction to all routes to get user context
-router.use(extractAuth)
+//router.use(extractAuth)
 
 // TikTok OAuth
 router.get('/tiktok', (req, res) => {
