@@ -153,13 +153,34 @@ router.get('/', async (req, res) => {
       is_hidden, 
       min_relevance, 
       max_relevance,
+      brand_id,
       limit = 50,
       offset = 0,
       sort_by = 'created_at',
       sort_order = 'desc'
     } = req.query
 
+    // Log brand_id for debugging
+    console.log('[Trends API] Request received:', {
+      brand_id,
+      category,
+      search,
+      is_hidden,
+      timestamp: new Date().toISOString()
+    })
+
     let query = supabaseAdmin.from('trending_topics').select('*')
+
+    // Apply brand_id filter
+    if (brand_id && brand_id !== 'all') {
+      // Filter by specific brand_id
+      console.log('[Trends API] Filtering by brand_id:', brand_id)
+      query = query.eq('brand_id', brand_id)
+    } else {
+      // When "all" is selected or no brand_id provided, show all trends
+      // (both global trends with brand_id IS NULL and brand-specific trends)
+      console.log('[Trends API] No brand filter - showing all trends')
+    }
 
     // Apply filters
     if (category) {
@@ -193,12 +214,20 @@ router.get('/', async (req, res) => {
     const { data, error, count } = await query
     
     if (error) {
-      console.error('Database query error:', error)
+      console.error('[Trends API] Database query error:', error)
       return res.status(400).json({ 
         error: 'Failed to fetch trending topics',
         details: error.message 
       })
     }
+
+    // Log response for debugging
+    console.log('[Trends API] Response:', {
+      brand_id,
+      trends_count: data?.length || 0,
+      total: count,
+      timestamp: new Date().toISOString()
+    })
 
     res.json({
       trends: data || [],

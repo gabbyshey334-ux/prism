@@ -24,21 +24,29 @@ router.use(extractAuth)
 // Base44 compatible: Also checks CESDK_API_KEY environment variable
 router.get('/getCESDKKey', async (req, res) => {
   try {
+    console.log('[CE.SDK] License key request received');
     const licenseKey = process.env.CESDK_LICENSE_KEY || process.env.CESDK_API_KEY
     
     if (!licenseKey) {
+      console.error('[CE.SDK] License key not configured');
       return res.status(500).json({
         error: 'license_key_not_configured',
         message: 'CE.SDK license key is not configured. Please set CESDK_LICENSE_KEY or CESDK_API_KEY environment variable.'
       })
     }
 
+    // Validate license key format (basic check)
+    if (licenseKey.length < 10) {
+      console.warn('[CE.SDK] License key seems too short, may be invalid');
+    }
+
+    console.log('[CE.SDK] License key provided successfully');
     return res.json({
       apiKey: licenseKey,
       success: true
     })
   } catch (e) {
-    console.error('getCESDKKey error:', e)
+    console.error('[CE.SDK] License key fetch error:', e)
     return res.status(500).json({
       error: 'license_key_fetch_failed',
       message: e.message
@@ -48,21 +56,29 @@ router.get('/getCESDKKey', async (req, res) => {
 
 router.post('/getCESDKKey', async (req, res) => {
   try {
+    console.log('[CE.SDK] License key request received (POST)');
     const licenseKey = process.env.CESDK_LICENSE_KEY || process.env.CESDK_API_KEY
     
     if (!licenseKey) {
+      console.error('[CE.SDK] License key not configured');
       return res.status(500).json({
         error: 'license_key_not_configured',
         message: 'CE.SDK license key is not configured. Please set CESDK_LICENSE_KEY or CESDK_API_KEY environment variable.'
       })
     }
 
+    // Validate license key format (basic check)
+    if (licenseKey.length < 10) {
+      console.warn('[CE.SDK] License key seems too short, may be invalid');
+    }
+
+    console.log('[CE.SDK] License key provided successfully (POST)');
     return res.json({
       apiKey: licenseKey,
       success: true
     })
   } catch (e) {
-    console.error('getCESDKKey error:', e)
+    console.error('[CE.SDK] License key fetch error (POST):', e)
     return res.status(500).json({
       error: 'license_key_fetch_failed',
       message: e.message

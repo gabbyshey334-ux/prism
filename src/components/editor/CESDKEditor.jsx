@@ -41,38 +41,113 @@ export default function CESDKEditor({
     return dimensions[formatKey] || dimensions['instagram_square'];
   }, []); // Empty dependency array means it's created once
 
-  const loadCESDKScript = () => {
+  const loadCESDKScript = (retryCount = 0, maxRetries = 2) => {
     return new Promise((resolve, reject) => {
+      // Check if already loaded
       if (window.CreativeEditorSDK) {
+        console.log('[CE.SDK] SDK already loaded');
         resolve();
         return;
       }
 
-      const script = document.createElement('script');
-      script.type = 'module';
-      script.textContent = `
-        import CreativeEditorSDK from 'https://cdn.img.ly/packages/imgly/cesdk-js/1.31.0/index.js';
-        window.CreativeEditorSDK = CreativeEditorSDK;
-        window.dispatchEvent(new Event('cesdk-loaded'));
-      `;
-      
-      const loadHandler = () => {
+      console.log(`[CE.SDK] Loading SDK script (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+
+      // Set timeout for script loading (30 seconds)
+      const timeout = setTimeout(() => {
         window.removeEventListener('cesdk-loaded', loadHandler);
+        window.removeEventListener('cesdk-error', errorHandler);
+        const error = new Error('CE.SDK script loading timeout after 30 seconds');
+        console.error('[CE.SDK] Script loading timeout:', error);
+        
+        if (retryCount < maxRetries) {
+          console.log(`[CE.SDK] Retrying script load (${retryCount + 1}/${maxRetries})...`);
+          loadCESDKScript(retryCount + 1, maxRetries)
+            .then(resolve)
+            .catch(reject);
+        } else {
+          reject(error);
+        }
+      }, 30000);
+
+      const loadHandler = () => {
+        clearTimeout(timeout);
+        window.removeEventListener('cesdk-loaded', loadHandler);
+        window.removeEventListener('cesdk-error', errorHandler);
+        console.log('[CE.SDK] SDK loaded successfully');
         resolve();
+      };
+
+      const errorHandler = (event) => {
+        clearTimeout(timeout);
+        window.removeEventListener('cesdk-loaded', loadHandler);
+        window.removeEventListener('cesdk-error', errorHandler);
+        const error = event.detail || new Error('Failed to load CE.SDK script');
+        console.error('[CE.SDK] Script loading error:', error);
+        
+        if (retryCount < maxRetries) {
+          console.log(`[CE.SDK] Retrying script load (${retryCount + 1}/${maxRetries})...`);
+          setTimeout(() => {
+            loadCESDKScript(retryCount + 1, maxRetries)
+              .then(resolve)
+              .catch(reject);
+          }, 2000); // Wait 2 seconds before retry
+        } else {
+          reject(error);
+        }
       };
       
       window.addEventListener('cesdk-loaded', loadHandler);
+      window.addEventListener('cesdk-error', errorHandler);
+
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.textContent = `
+        try {
+          import('https://cdn.img.ly/packages/imgly/cesdk-js/1.31.0/index.js')
+            .then(module => {
+              window.CreativeEditorSDK = module.default || module;
+              console.log('[CE.SDK] Module imported successfully');
+              window.dispatchEvent(new Event('cesdk-loaded'));
+            })
+            .catch(error => {
+              console.error('[CE.SDK] Module import error:', error);
+              window.dispatchEvent(new CustomEvent('cesdk-error', { detail: error }));
+            });
+        } catch (error) {
+          console.error('[CE.SDK] Script execution error:', error);
+          window.dispatchEvent(new CustomEvent('cesdk-error', { detail: error }));
+        }
+      `;
+      
       script.onerror = (err) => {
+        clearTimeout(timeout);
         window.removeEventListener('cesdk-loaded', loadHandler);
-        reject(new Error('Failed to load CE.SDK'));
+        window.removeEventListener('cesdk-error', errorHandler);
+        const error = new Error('Failed to load CE.SDK script from CDN. Check network connection and CORS settings.');
+        console.error('[CE.SDK] Script onerror:', err, error);
+        
+        if (retryCount < maxRetries) {
+          console.log(`[CE.SDK] Retrying script load (${retryCount + 1}/${maxRetries})...`);
+          setTimeout(() => {
+            loadCESDKScript(retryCount + 1, maxRetries)
+              .then(resolve)
+              .catch(reject);
+          }, 2000);
+        } else {
+          reject(error);
+        }
       };
       
       document.head.appendChild(script);
+      console.log('[CE.SDK] Script element added to DOM');
     });
   };
 
   const getLicenseKey = async () => {
     try {
+      console.log('[CE.SDK] Fetching license key...');
+      
+      // Check cache first
       const cachedKey = localStorage.getItem(LICENSE_CACHE_KEY);
       const cachedTime = localStorage.getItem(LICENSE_CACHE_TIME_KEY);
       
@@ -80,36 +155,89 @@ export default function CESDKEditor({
         const now = Date.now();
         const cacheAge = now - parseInt(cachedTime);
         if (cacheAge < CACHE_DURATION) {
+          console.log('[CE.SDK] Using cached license key');
           return cachedKey;
+        } else {
+          console.log('[CE.SDK] Cached license key expired, fetching new one');
         }
       }
 
+      // Fetch from backend
+      console.log('[CE.SDK] Requesting license key from backend...');
       const { data: licenseResponse } = await prism.functions.invoke('getCESDKKey');
       
+      console.log('[CE.SDK] License key response:', {
+        hasApiKey: !!licenseResponse?.apiKey,
+        hasError: !!licenseResponse?.error,
+        error: licenseResponse?.error,
+        message: licenseResponse?.message
+      });
+      
+      if (licenseResponse?.error) {
+        throw new Error(licenseResponse.message || licenseResponse.error || 'License key not available');
+      }
+      
       if (!licenseResponse?.apiKey) {
-        throw new Error('License key not available');
+        throw new Error('License key not available. Please configure CESDK_LICENSE_KEY or CESDK_API_KEY environment variable.');
       }
 
+      // Cache the key
       localStorage.setItem(LICENSE_CACHE_KEY, licenseResponse.apiKey);
       localStorage.setItem(LICENSE_CACHE_TIME_KEY, Date.now().toString());
+      console.log('[CE.SDK] License key cached successfully');
       
       return licenseResponse.apiKey;
 
     } catch (error) {
+      console.error('[CE.SDK] License key fetch error:', error);
+      
+      // Try fallback to cached key even if expired
       const fallbackKey = localStorage.getItem(LICENSE_CACHE_KEY);
-      if (fallbackKey) return fallbackKey;
-      throw error;
+      if (fallbackKey) {
+        console.warn('[CE.SDK] Using expired cached license key as fallback');
+        return fallbackKey;
+      }
+      
+      // Provide detailed error message
+      const errorMessage = error.message || 'Failed to fetch CE.SDK license key';
+      throw new Error(`${errorMessage}. Please check that CESDK_LICENSE_KEY or CESDK_API_KEY is configured in the backend environment variables.`);
     }
   };
 
   const initEditor = async (container) => {
-    if (!container || initStartedRef.current) return;
+    if (!container || initStartedRef.current) {
+      if (!container) {
+        console.warn('[CE.SDK] Init skipped: container not available');
+      }
+      if (initStartedRef.current) {
+        console.warn('[CE.SDK] Init skipped: already started');
+      }
+      return;
+    }
+    
     initStartedRef.current = true;
+    console.log('[CE.SDK] Initializing editor...');
 
     try {
+      // Step 1: Load SDK script
+      console.log('[CE.SDK] Step 1: Loading SDK script...');
+      setLoading(true);
+      setError(null);
+      
       await loadCESDKScript();
-      const licenseKey = await getLicenseKey();
+      console.log('[CE.SDK] ✓ SDK script loaded');
 
+      // Step 2: Get license key
+      console.log('[CE.SDK] Step 2: Getting license key...');
+      const licenseKey = await getLicenseKey();
+      
+      if (!licenseKey) {
+        throw new Error('License key is empty or invalid');
+      }
+      console.log('[CE.SDK] ✓ License key obtained');
+
+      // Step 3: Create editor instance
+      console.log('[CE.SDK] Step 3: Creating editor instance...');
       const config = {
         license: licenseKey,
         role: 'Creator',
@@ -127,11 +255,10 @@ export default function CESDKEditor({
         callbacks: {
           onUpload: async (file) => {
             try {
+              console.log('[CE.SDK] Uploading file:', file.name);
               const { file_url } = await prism.integrations.Core.UploadFile({ file });
+              console.log('[CE.SDK] File uploaded:', file_url);
               
-              // Upload entity is automatically created by the upload endpoint
-              // No need to create it again here
-
               return {
                 id: `upload-${Date.now()}`,
                 meta: {
@@ -140,38 +267,60 @@ export default function CESDKEditor({
                 }
               };
             } catch (error) {
-              console.error('Upload error:', error);
+              console.error('[CE.SDK] Upload error:', error);
               throw error;
             }
           }
         }
       };
 
+      console.log('[CE.SDK] Creating SDK instance with config...');
       const instance = await window.CreativeEditorSDK.create(container, config);
       
-      if (!instance) return;
+      if (!instance) {
+        throw new Error('Failed to create CE.SDK instance. The SDK returned null.');
+      }
 
+      console.log('[CE.SDK] ✓ Editor instance created successfully');
       instanceRef.current = instance;
-      setCesdk(instance); // Store the instance in state
+      setCesdk(instance);
 
+      // Step 4: Add asset sources
       setTimeout(() => {
         try {
+          console.log('[CE.SDK] Adding asset sources...');
           instance.addDefaultAssetSources();
           instance.addDemoAssetSources({
             sceneMode: 'Design',
             withUploadAssetSources: true
           });
+          console.log('[CE.SDK] ✓ Asset sources added');
         } catch (err) {
-          console.error('Asset loading error:', err);
+          console.error('[CE.SDK] Asset loading error:', err);
+          // Don't throw - asset sources are optional
         }
       }, 0);
 
-      // setLoading(false) will now be handled by the useEffect once the scene is loaded/created
+      console.log('[CE.SDK] ✓ Editor initialization complete');
+      // setLoading(false) will be handled by the useEffect once the scene is loaded/created
     } catch (err) {
-      console.error('Init failed:', err);
-      setError(err.message);
-      toast.error('Failed to load editor: ' + err.message);
-      setLoading(false); // If init fails, stop loading
+      console.error('[CE.SDK] ✗ Initialization failed:', err);
+      
+      // Provide user-friendly error messages
+      let errorMessage = err.message || 'Failed to initialize CE.SDK editor';
+      
+      if (errorMessage.includes('timeout')) {
+        errorMessage = 'CE.SDK script loading timed out. Please check your internet connection and try again.';
+      } else if (errorMessage.includes('License') || errorMessage.includes('license')) {
+        errorMessage = 'CE.SDK license key is not configured. Please contact support or check backend configuration.';
+      } else if (errorMessage.includes('CORS') || errorMessage.includes('network')) {
+        errorMessage = 'Failed to load CE.SDK from CDN. Please check your network connection and CORS settings.';
+      }
+      
+      setError(errorMessage);
+      toast.error('Failed to load editor: ' + errorMessage);
+      setLoading(false);
+      initStartedRef.current = false; // Allow retry
     }
   };
 
@@ -385,8 +534,12 @@ export default function CESDKEditor({
     loadSceneAndApplyContent();
   }, [cesdk, open, initialScene, template, contentValues, uploadedMedia, format, getFormatDimensions]);
 
+  // Store container node for retry functionality
+  const containerNodeRef = React.useRef(null);
+  
   const containerRef = React.useCallback((node) => {
-    console.log('Callback ref called, node:', !!node, 'open:', open);
+    console.log('[CE.SDK] Container ref called, node:', !!node, 'open:', open, 'initStarted:', initStartedRef.current);
+    containerNodeRef.current = node;
     if (node && open && !initStartedRef.current) {
       initEditor(node);
     }
@@ -474,19 +627,52 @@ export default function CESDKEditor({
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-95 z-[100000]">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-gray-600 border-t-white rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-xl font-bold text-white">Loading Editor...</p>
+            <p className="text-xl font-bold text-white mb-2">Loading Creative Editor...</p>
+            <p className="text-sm text-gray-400">This may take a few moments</p>
           </div>
         </div>
       )}
 
       {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-95 z-[100000]">
-          <div className="text-center max-w-md">
+          <div className="text-center max-w-lg px-6">
+            <div className="w-16 h-16 mx-auto mb-4 text-red-400">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
             <p className="text-xl font-bold text-red-400 mb-4">Failed to Load Editor</p>
-            <p className="text-sm text-gray-300 mb-6">{error}</p>
-            <Button onClick={onClose} variant="outline" size="lg" className="bg-white">
-              Close
-            </Button>
+            <p className="text-sm text-gray-300 mb-2">{error}</p>
+            <p className="text-xs text-gray-500 mb-6">
+              Check the browser console for detailed error information.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button 
+                onClick={() => {
+                  console.log('[CE.SDK] Retry button clicked');
+                  setError(null);
+                  setLoading(true);
+                  initStartedRef.current = false;
+                  if (containerNodeRef.current) {
+                    initEditor(containerNodeRef.current);
+                  } else {
+                    console.error('[CE.SDK] Cannot retry: container node not available');
+                    setError('Cannot retry: container not available. Please close and reopen the editor.');
+                    setLoading(false);
+                  }
+                }} 
+                variant="outline" 
+                size="lg" 
+                className="bg-white"
+              >
+                Retry
+              </Button>
+              {onClose && (
+                <Button onClick={onClose} variant="outline" size="lg" className="bg-gray-700 text-white">
+                  Close
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}

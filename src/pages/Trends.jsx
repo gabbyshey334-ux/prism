@@ -231,7 +231,7 @@ export default function Trends() {
     return brand?.content_age_limit_days || 7; // Use brand-specific limit or default to 7 days
   };
 
-  const { data: trendsData = { trends: [] }, isLoading } = useQuery({
+  const { data: trendsData = { trends: [] }, isLoading, error: trendsError } = useQuery({
     queryKey: ['trendingTopics', selectedBrand, searchQuery, showHidden, selectedSource, sortBy],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -243,12 +243,45 @@ export default function Trends() {
       if (sortBy === 'viral') params.append('sort_by', 'relevance_score');
       if (sortBy === 'date') params.append('sort_by', 'created_at');
       
+      // Log the request for debugging
+      console.log('[Trends Page] Fetching trends with params:', {
+        selectedBrand,
+        brand_id: selectedBrand !== 'all' ? selectedBrand : 'all',
+        category: selectedSource,
+        search: searchQuery,
+        is_hidden: showHidden,
+        sort_by: sortBy,
+        url: `/api/trending_topics?${params.toString()}`
+      });
+      
       const response = await fetch(`/api/trending_topics?${params.toString()}`);
-      if (!response.ok) throw new Error('Failed to fetch trends');
-      return response.json();
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[Trends Page] API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(errorData.message || `Failed to fetch trends: ${response.statusText}`);
+      }
+      const data = await response.json();
+      
+      // Log the response for debugging
+      console.log('[Trends Page] Trends fetched:', {
+        selectedBrand,
+        brand_id: selectedBrand !== 'all' ? selectedBrand : 'all',
+        trends_count: data.trends?.length || 0,
+        total: data.total,
+        trends_with_brand_id: data.trends?.filter(t => t.brand_id)?.length || 0,
+        trends_without_brand_id: data.trends?.filter(t => !t.brand_id)?.length || 0
+      });
+      
+      return data;
     },
     initialData: { trends: [] },
     enabled: !isCheckingAuth,
+    retry: 2,
+    retryDelay: 1000,
   });
 
   const trends = trendsData.trends || [];
@@ -516,14 +549,24 @@ export default function Trends() {
     }
   }
 
-  // Apply brand filter
+  // Apply brand filter (backend now handles this, but keep as client-side backup)
+  // Note: Backend should be filtering by brand_id, but we keep this as a safety net
   if (selectedBrand !== "all") {
+    const beforeCount = preFilteredAndSortedTrends.length;
     preFilteredAndSortedTrends = preFilteredAndSortedTrends.filter(t => t.brand_id === selectedBrand);
+    const afterCount = preFilteredAndSortedTrends.length;
+    if (beforeCount !== afterCount && beforeCount > 0) {
+      console.warn('[Trends Page] Client-side brand filter applied:', {
+        selectedBrand,
+        beforeCount,
+        afterCount,
+        message: 'Backend may not be filtering correctly - client-side filter applied'
+      });
+    }
   } else {
-    // If "All Brands" is selected, only show trends without a specific brand_id (general trends)
-    // Or, if brand_id is null for global trends, ensure they are shown.
-    // If brand_id is present, it means it's specific to a brand.
-    preFilteredAndSortedTrends = preFilteredAndSortedTrends.filter(t => !t.brand_id);
+    // If "All Brands" is selected, show all trends returned by backend
+    // Backend returns all trends (both global and brand-specific) when brand_id is "all"
+    console.log('[Trends Page] Showing all trends (no brand filter)');
   }
 
   // Apply search query filter
@@ -834,8 +877,30 @@ export default function Trends() {
 
         {isLoading ? (
           <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
-            Loading trends...
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+            <p>Loading trends...</p>
           </div>
+        ) : trendsError ? (
+          <Card className="p-12 text-center border-0 rounded-2xl" style={{ backgroundColor: 'var(--card)' }}>
+            <TrendingUp className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
+            <p className="text-xl mb-2" style={{ color: 'var(--text)' }}>
+              Error loading trends
+            </p>
+            <p style={{ color: 'var(--text-muted)' }}>
+              {trendsError.message || 'An error occurred while fetching trends. Please try again.'}
+            </p>
+            <Button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['trendingTopics'] })}
+              className="mt-4 rounded-xl"
+              style={{
+                background: 'linear-gradient(135deg, #88925D 0%, #A4B58B 100%)',
+                color: 'white'
+              }}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
+          </Card>
         ) : activeTrends.length === 0 && usedTrends.length === 0 && (!showHidden || hiddenTrends.length === 0) ? (
           <Card className="p-12 text-center border-0 rounded-2xl" style={{ backgroundColor: 'var(--card)' }}>
             <TrendingUp className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
