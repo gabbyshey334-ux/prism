@@ -204,18 +204,18 @@ export default function Trends() {
 
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Check authentication
+  // Check authentication (optional - trends can be viewed without auth)
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const isAuth = await prism.auth.isAuthenticated();
         if (!isAuth) {
-          prism.auth.redirectToLogin(window.location.pathname);
-          return;
+          console.log('[Trends Page] User not authenticated - showing public trends');
+          // Don't redirect - allow viewing public trends
         }
       } catch (error) {
-        console.error("Authentication check failed:", error); // Log the error for debugging
-        prism.auth.redirectToLogin(window.location.pathname);
+        console.warn('[Trends Page] Auth check failed:', error);
+        // Continue anyway - trends should be publicly accessible
       } finally {
         setIsCheckingAuth(false);
       }
@@ -254,9 +254,37 @@ export default function Trends() {
         url: `/api/trending_topics?${params.toString()}`
       });
       
-      const response = await fetch(`/api/trending_topics?${params.toString()}`);
+      // Use full URL to avoid any proxy/redirect issues
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://octopus-app-73pgz.ondigitalocean.app/api';
+      const fullUrl = `${apiBaseUrl}/trending_topics?${params.toString()}`;
+      
+      console.log('[Trends Page] Full URL:', fullUrl);
+      
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'omit' // Don't send cookies/credentials for public endpoint
+      });
+      
+      console.log('[Trends Page] Response status:', response.status);
+      console.log('[Trends Page] Response content-type:', response.headers.get('content-type'));
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const contentType = response.headers.get('content-type');
+        let errorData = {};
+        
+        if (contentType && contentType.includes('application/json')) {
+          errorData = await response.json().catch(() => ({}));
+        } else {
+          // Got HTML instead of JSON - likely a server error or redirect
+          const textResponse = await response.text();
+          console.error('[Trends Page] Got HTML instead of JSON:', textResponse.substring(0, 200));
+          throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
+        }
+        
         console.error('[Trends Page] API error:', {
           status: response.status,
           statusText: response.statusText,
@@ -264,6 +292,7 @@ export default function Trends() {
         });
         throw new Error(errorData.message || `Failed to fetch trends: ${response.statusText}`);
       }
+      
       const data = await response.json();
       
       // Log the response for debugging
@@ -279,7 +308,7 @@ export default function Trends() {
       return data;
     },
     initialData: { trends: [] },
-    enabled: !isCheckingAuth,
+    enabled: true, // Always enabled - don't wait for auth check
     retry: 2,
     retryDelay: 1000,
   });
